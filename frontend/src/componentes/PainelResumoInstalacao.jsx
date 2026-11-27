@@ -90,7 +90,7 @@ function DesenhoSinopticoInstalacao({
         : 'API do Inversor'
       : cfg.modo_conexao_inversor === 'webhook_push'
       ? 'Webhook Local'
-      : 'Clima + Manual';
+      : 'Sem conexão (Manual)';
 
   const corSaude =
     saudeDiag?.nivel === 'alerta'

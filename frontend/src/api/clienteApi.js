@@ -203,6 +203,13 @@ export const clienteApi = {
   /** Central de APIs ativas e personalizadas do projeto */
   obterCentralApis: () => fetch(`${BASE_API}/api/apis`).then(tratarRespostaJson),
 
+  testarClimaNoEndereco: (dados) =>
+    fetch(`${BASE_API}/api/apis/clima/testar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(dados),
+    }).then(tratarRespostaJson),
+
   atualizarLocalApiClima: (dados) =>
     fetch(`${BASE_API}/api/apis/clima/local`, {
       method: 'POST',

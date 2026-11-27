@@ -39,7 +39,7 @@ function obterVisualDaApi(api) {
   const url = (api.url || '').toLowerCase();
 
   if (id === 'clima_principal' || url.includes('accuweather') || url.includes('wttr.in')) {
-    return { foto: '/apis/api-clima.jpg', selo: 'AccuWeather · Estação Real' };
+    return { foto: '/apis/api-clima.jpg', selo: 'Clima da usina' };
   }
   if (id === 'open_meteo_forecast') {
     return { foto: '/apis/api-irradiacao.jpg', selo: 'Satélite & Piranômetro Solar' };
@@ -96,17 +96,22 @@ export default function PainelCentralApis({ estadoSistema, aoAtualizarConfig, ao
     }
   };
 
-  useEffect(() => { carregar(); }, [estadoSistema?.config?.modo_conexao_inversor, estadoSistema?.config?.url_api_inversor]);
+  useEffect(() => { carregar(); }, [estadoSistema?.config]);
 
   const testarNativa = async (api) => {
     definirTestandoId(api.id);
     definirErro('');
     try {
-      const res = await clienteApi.testarUrlApi({
-        url: api.url,
-        campo_potencia: api.campo_potencia || '',
-        unidade: api.unidade || 'W',
-      });
+      const cfg = estadoSistema.config;
+      const res = api.id === 'clima_principal'
+        ? await clienteApi.testarClimaNoEndereco({
+            latitude: cfg.latitude, longitude: cfg.longitude,
+            provedor_clima: cfg.provedor_clima || 'accuweather',
+            chave_api_accuweather: cfg.chave_api_accuweather || '',
+          })
+        : await clienteApi.testarUrlApi({
+            url: api.url, campo_potencia: api.campo_potencia || '', unidade: api.unidade || 'W',
+          });
       definirResultadosNativas((atual) => ({ ...atual, [api.id]: res }));
     } catch (e) {
       definirErro(e.message);
@@ -184,13 +189,21 @@ export default function PainelCentralApis({ estadoSistema, aoAtualizarConfig, ao
             {central?.total_ativas || 0} integrações ativas
           </span>
           <span style={{ fontSize: 12.5, color: 'var(--text-secondary)' }}>
-            Modo da usina:{' '}
+            Clima:{' '}
+            <strong>
+              {estadoSistema?.config?.provedor_clima === 'open_meteo'
+                ? 'Open-Meteo'
+                : estadoSistema?.config?.provedor_clima === 'estacao_local'
+                ? 'Estação Real (METAR)'
+                : 'AccuWeather / Estação Real'}
+            </strong>
+            {' · '}Inversor:{' '}
             <strong>
               {modoAtual === 'api_inversor'
-                ? `API do Inversor (${estadoSistema?.config?.provedor_inversor || 'HTTP'})`
+                ? `API (${estadoSistema?.config?.provedor_inversor || 'HTTP'})`
                 : modoAtual === 'webhook_push'
                 ? 'Webhook Local'
-                : 'Clima + Manual (sem API de inversor)'}
+                : 'Sem conexão (Manual)'}
             </strong>
           </span>
         </div>
@@ -308,7 +321,7 @@ export default function PainelCentralApis({ estadoSistema, aoAtualizarConfig, ao
         </div>
 
         <div className="test-only-callout" style={{ marginBottom: 14 }} role="note">
-          <strong>Importante — API de inversor pré-cadastrada não mostra a realidade:</strong> a integração <strong>SolarNetwork</strong> incluída no projeto serve <strong>exclusivamente a título de teste de código</strong> (lê uma usina pública remota e não reflete a geração real do seu telhado/planta). Na operação real sem inversor próprio integrado via rede, utilize o modo <strong>Clima + Manual</strong>.
+          <strong>SolarNetwork para demonstração.</strong> As leituras vêm de uma usina pública externa. Para testar a previsão da sua casa sem equipamento, escolha <strong>Sem conexão (Manual)</strong> em Usina e local.
         </div>
 
         <div className="integrations-grid">
@@ -323,7 +336,7 @@ export default function PainelCentralApis({ estadoSistema, aoAtualizarConfig, ao
                   <div className="integration-photo-overlay" />
                   <div className="integration-photo-badges">
                     {ehApiDeTeste && (
-                      <span className="integration-dot-badge warn">Só teste · Não é dado real</span>
+                      <span className="integration-dot-badge warn">Teste · Usina externa</span>
                     )}
                     <span className={`integration-dot-badge ${api.ativa ? 'on' : 'off'}`}>
                       {emUsoNaUsina ? 'Em uso na usina' : api.ativa ? 'Ativa' : 'Pausada'}
@@ -453,7 +466,7 @@ export default function PainelCentralApis({ estadoSistema, aoAtualizarConfig, ao
 
                   {teste && (
                     <div className={`integration-ping ${teste.ok ? 'ok' : 'err'}`}>
-                      <span>{teste.ok ? `Respondendo · ${teste.latencia_ms} ms` : 'Indisponível'}</span>
+                        <span>{teste.ok ? `${teste.fonte || 'Respondendo'} · ${teste.latencia_ms} ms` : 'Indisponível'}</span>
                       {teste.potencia_kw !== null && teste.potencia_kw !== undefined && (
                         <strong>{formatarNumero(teste.potencia_kw, 2)} kW</strong>
                       )}

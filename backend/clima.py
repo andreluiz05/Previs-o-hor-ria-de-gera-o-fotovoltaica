@@ -8,6 +8,7 @@ Suporta:
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import time
@@ -23,7 +24,7 @@ TZ_BR = timezone(timedelta(hours=-3))
 
 # Cache leve em memória para evitar gastar a franquia gratuita de 50 chamadas/dia da AccuWeather
 _CACHE_LOCATION_KEY_ACCU: dict[tuple[float, float], str] = {}
-_CACHE_CLIMA_AGORA: dict[tuple[str, float, float, bool], tuple[float, dict[str, Any]]] = {}
+_CACHE_CLIMA_AGORA: dict[tuple[str, float, float, str], tuple[float, dict[str, Any]]] = {}
 
 
 def _obter_chave_accuweather(cfg_ou_chave: dict[str, Any] | str | None) -> str:
@@ -71,7 +72,8 @@ def consultar_clima_agora_preciso(
     """
     prov = (provedor_clima or "accuweather").strip().lower()
     chave = _obter_chave_accuweather(chave_accuweather)
-    cache_id = (prov, round(float(latitude), 3), round(float(longitude), 3), bool(chave))
+    credencial = hashlib.sha256(chave.encode()).hexdigest() if prov == "accuweather" and chave else ""
+    cache_id = (prov, round(float(latitude), 3), round(float(longitude), 3), credencial)
     agora_mono = time.monotonic()
     if cache_id in _CACHE_CLIMA_AGORA:
         ts_salvo, payload_salvo = _CACHE_CLIMA_AGORA[cache_id]

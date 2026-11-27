@@ -99,7 +99,7 @@ class CentralTempoReal:
                         "status": "online",
                         "dados_simulados": False,
                         "atualizado_em": capturado.isoformat(),
-                        "fonte": "Open-Meteo · clima em tempo real",
+                        "fonte": cache.get("fonte") or "Open-Meteo · previsão meteorológica",
                     }
         except Exception:
             pass

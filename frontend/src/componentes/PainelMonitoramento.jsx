@@ -145,7 +145,7 @@ function CentralAoVivo({ estadoSistema }) {
           <AlertTriangle size={18} />
           <div>
             <strong>API de inversor apenas para teste (não reflete a realidade da sua usina):</strong>{' '}
-            o conector <strong>SolarNetwork</strong> está ativo somente para validar a integração HTTP no código e lê uma planta externa de demonstração. Para acompanhar valores condizentes com o seu local sem inversor próprio integrado, use os indicadores climáticos ou selecione <strong>Clima + Manual</strong> no Passo 1.
+            o conector <strong>SolarNetwork</strong> está ativo somente para validar a integração HTTP no código e lê uma planta externa de demonstração. Para acompanhar valores condizentes com o seu local sem inversor próprio integrado, use os indicadores climáticos ou selecione <strong>Sem conexão (Manual)</strong> no Passo 1.
           </div>
         </div>
       )}
@@ -307,7 +307,7 @@ function CentralAoVivo({ estadoSistema }) {
             </strong>
             <small>
               {estadoSistema?.config?.modo_conexao_inversor === 'manual'
-                ? 'No modo Clima + Manual tudo funciona sozinho pelo clima; abra aqui apenas se quiser testar um valor em kW.'
+                ? 'O clima fornece a estimativa. Informe a potência em kW para comparar com ela.'
                 : 'Compare instantaneamente um valor em kW com o sol deste minuto.'}
             </small>
           </span>

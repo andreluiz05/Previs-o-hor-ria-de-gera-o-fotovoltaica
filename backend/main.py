@@ -41,7 +41,7 @@ from monitoramento import MonitoramentoSolar
 from fonte_publica import MonitorPublico
 from tempo_real import CentralTempoReal
 
-from clima import obter_clima
+from clima import consultar_clima_agora_preciso, obter_clima
 from solar_engine import (
     DEFAULT_CONFIG,
     DEFAULT_EPOCHS,
@@ -298,6 +298,24 @@ class RequisicaoLocalClima(BaseModel):
     longitude: float
     provedor_clima: str | None = None
     chave_api_accuweather: str | None = None
+
+
+class RequisicaoTesteClima(BaseModel):
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
+    provedor_clima: Literal["accuweather", "estacao_local", "open_meteo"]
+    chave_api_accuweather: str = ""
+
+
+@app.post("/api/apis/clima/testar")
+def testar_clima_no_endereco(req: RequisicaoTesteClima) -> dict[str, Any]:
+    """Consulta o clima para o formulário antes de salvar a configuração da usina."""
+    return consultar_clima_agora_preciso(
+        latitude=req.latitude,
+        longitude=req.longitude,
+        provedor_clima=req.provedor_clima,
+        chave_accuweather=req.chave_api_accuweather,
+    )
 
 
 @app.get("/api/apis")

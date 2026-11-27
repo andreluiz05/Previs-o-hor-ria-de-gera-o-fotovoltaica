@@ -9,6 +9,7 @@ import {
   CloudSun as IconeClima,
   PlugZap as IconeConexao,
   Radio as IconeWebhook,
+  ClipboardEdit as IconeManual,
   Home as IconeCasa,
   Store as IconeComercio,
   Factory as IconeIndustria,
@@ -128,11 +129,12 @@ export default function PainelMinhaUsina({ estadoSistema, aoSalvarUsina, aoIrPar
   const [coordsMapa, definirCoordsMapa] = useState({ lat: -7.8342, lon: -34.9064 });
   const [testandoApi, definirTestandoApi] = useState(false);
   const [resultadoTesteApi, definirResultadoTesteApi] = useState(null);
-  const [termoClima, definirTermoClima] = useState('');
-  const [enderecosClima, definirEnderecosClima] = useState([]);
-  const [buscandoClima, definirBuscandoClima] = useState(false);
   const [testandoClima, definirTestandoClima] = useState(false);
-  const [resultadoClima, definirResultadoClima] = useState(null);
+  const [testeClima, definirTesteClima] = useState(null);
+  const { latitude, longitude, provedor_clima, chave_api_accuweather } = formulario;
+  const resultadoClima = testeClima && testeClima.latitude === Number(latitude)
+    && testeClima.longitude === Number(longitude) && testeClima.provedor_clima === provedor_clima
+    && testeClima.chave_api_accuweather === chave_api_accuweather ? testeClima.resultado : null;
   const [salvando, definirSalvando] = useState(false);
   const [erroSalvar, definirErroSalvar] = useState('');
   const [salvoOk, definirSalvoOk] = useState(false);
@@ -183,54 +185,24 @@ export default function PainelMinhaUsina({ estadoSistema, aoSalvarUsina, aoIrPar
     }));
     definirCoordsMapa({ lat: Number(item.latitude), lon: Number(item.longitude) });
     definirCidadesEncontradas([]);
-    definirEnderecosClima([]);
     definirTermoCidade('');
-    definirTermoClima('');
-    definirResultadoClima(null);
-  };
-
-  const buscarEnderecoNaApiClima = async () => {
-    if (!termoClima.trim()) return;
-    definirBuscandoClima(true);
-    try {
-      const resp = await clienteApi.pesquisarCidades(termoClima);
-      definirEnderecosClima(resp.resultados || []);
-    } catch {
-      definirEnderecosClima([]);
-    } finally {
-      definirBuscandoClima(false);
-    }
   };
 
   const testarApiDeClimaNoEndereco = async (localCustom) => {
-    const alvo = localCustom || {
-      cidade: formulario.cidade,
-      latitude: formulario.latitude,
-      longitude: formulario.longitude,
+    if (localCustom) selecionarCidade({ ...localCustom, nome: localCustom.cidade });
+    const consulta = {
+      latitude: Number(localCustom?.latitude ?? latitude),
+      longitude: Number(localCustom?.longitude ?? longitude),
+      provedor_clima,
+      chave_api_accuweather,
     };
+    definirTesteClima(null);
     definirTestandoClima(true);
     try {
-      const resp = await clienteApi.atualizarLocalApiClima({
-        cidade: alvo.cidade,
-        latitude: Number(alvo.latitude),
-        longitude: Number(alvo.longitude),
-        provedor_clima: formulario.provedor_clima || 'accuweather',
-        chave_api_accuweather: formulario.chave_api_accuweather || '',
-      });
-      definirFormulario((atual) => ({
-        ...atual,
-        cidade: resp.config.cidade,
-        latitude: resp.config.latitude,
-        longitude: resp.config.longitude,
-        provedor_clima: resp.config.provedor_clima,
-      }));
-      definirCoordsMapa({ lat: Number(resp.config.latitude), lon: Number(resp.config.longitude) });
-      definirResultadoClima(resp.clima_atual || { ok: false });
-      definirEnderecosClima([]);
-      definirTermoClima('');
-      if (aoSalvarUsina) await aoSalvarUsina();
+      const resultado = await clienteApi.testarClimaNoEndereco(consulta);
+      definirTesteClima({ ...consulta, resultado });
     } catch {
-      definirResultadoClima({ ok: false });
+      definirTesteClima({ ...consulta, resultado: { ok: false } });
     } finally {
       definirTestandoClima(false);
     }
@@ -445,317 +417,278 @@ export default function PainelMinhaUsina({ estadoSistema, aoSalvarUsina, aoIrPar
           </div>
         </div>
 
-        {/* BLOCO CLEAN DE MODO DE OPERAÇÃO (CLIMA+MANUAL vs API DO INVERSOR) */}
+        {/* CONFIGURAÇÃO INDEPENDENTE DA API DE CLIMA (DENTRO DO BLOCO DE ENDEREÇO + GOOGLE MAPS, SEMPRE ATIVA) */}
         <div className="connection-selector-section">
           <div className="connection-selector-head">
-            <span className="field-label" style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-              Como você vai acompanhar sua usina?
+            <span className="field-label" style={{ fontWeight: 600, color: 'var(--text-primary)', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+              <IconeClima size={16} color="var(--neural-teal)" />
+              Clima neste endereço
+              <span className="integration-dot-badge on" style={{ marginLeft: 4 }}>
+                Disponível em todos os modos
+              </span>
             </span>
-            {aoIrParaAba && (
-              <button type="button" className="link-subtle-btn" onClick={() => aoIrParaAba('apis')}>
-                Ver painel de APIs →
-              </button>
-            )}
-          </div>
-
-          <div className="mode-cards-grid" role="radiogroup" aria-label="Modo de acompanhamento da usina">
-            <button
-              type="button"
-              role="radio"
-              aria-checked={formulario.modo_conexao_inversor === 'manual'}
-              className={`mode-choice-card ${formulario.modo_conexao_inversor === 'manual' ? 'is-active' : ''}`}
-              onClick={() => {
-                definirFormulario({ ...formulario, modo_conexao_inversor: 'manual' });
-                definirResultadoTesteApi(null);
-              }}
-            >
-              <div className="mode-choice-top">
-                <strong style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <IconeClima size={15} color="var(--neural-teal)" /> API de Clima + Manual
-                </strong>
-                <span className="mode-tag">Sem API de inversor</span>
-              </div>
-              <p>Usa AccuWeather / Estação Terrestre Real no endereço do mapa; você lança os kWh quando quiser comparar.</p>
-            </button>
 
             <button
               type="button"
-              role="radio"
-              aria-checked={formulario.modo_conexao_inversor === 'api_inversor'}
-              className={`mode-choice-card ${formulario.modo_conexao_inversor === 'api_inversor' ? 'is-active' : ''}`}
-              onClick={() => definirFormulario({ ...formulario, modo_conexao_inversor: 'api_inversor' })}
+              className="btn btn-sm btn-primary"
+              disabled={testandoClima}
+              onClick={() => testarApiDeClimaNoEndereco()}
             >
-              <div className="mode-choice-top">
-                <strong style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <IconeConexao size={15} color="var(--solar-amber)" /> API do Inversor
-                </strong>
-                <span className="mode-tag">Automático</span>
-              </div>
-              <p>Busca a potência direto do software/API do inversor (SolarNetwork, Fronius, Shelly ou nuvem).</p>
-            </button>
-
-            <button
-              type="button"
-              role="radio"
-              aria-checked={formulario.modo_conexao_inversor === 'webhook_push'}
-              className={`mode-choice-card ${formulario.modo_conexao_inversor === 'webhook_push' ? 'is-active' : ''}`}
-              onClick={() => {
-                definirFormulario({ ...formulario, modo_conexao_inversor: 'webhook_push' });
-                definirResultadoTesteApi(null);
-              }}
-            >
-              <div className="mode-choice-top">
-                <strong style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <IconeWebhook size={15} color="var(--sky-hybrid)" /> Webhook Local
-                </strong>
-                <span className="mode-tag">Home Assistant</span>
-              </div>
-              <p>Seu medidor Wi-Fi, ESP32 ou automação envia as leituras direto para o Helionta.</p>
+              <IconeTestar size={13} /> {testandoClima ? 'Consultando clima…' : 'Testar clima neste endereço'}
             </button>
           </div>
 
-          {formulario.modo_conexao_inversor === 'manual' && (
-            <div className="mode-config-inline">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-                <span style={{ fontSize: 12.5, display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                  <IconeClima size={15} color="var(--neural-teal)" />
-                  <strong>Fonte de Clima</strong> em <strong>{formulario.cidade}</strong>
-                  <span className="mono" style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                    ({Number(formulario.latitude).toFixed(4)}, {Number(formulario.longitude).toFixed(4)})
-                  </span>
+          <div className="mode-config-inline" style={{ marginTop: 8 }}>
+            <div className="mode-config-row">
+              <select
+                aria-label="Provedor da API de Clima"
+                className="select"
+                style={{ flex: '1 1 250px', fontSize: 12.5 }}
+                value={formulario.provedor_clima || 'accuweather'}
+                onChange={(e) => definirFormulario((atual) => ({ ...atual, provedor_clima: e.target.value }))}
+              >
+                <option value="accuweather">AccuWeather</option>
+                <option value="estacao_local">Estação meteorológica local (sem chave)</option>
+                <option value="open_meteo">Open-Meteo (sem chave)</option>
+              </select>
+
+              {(formulario.provedor_clima || 'accuweather') === 'accuweather' && (
+                <input
+                  aria-label="API Key da AccuWeather"
+                  type="password"
+                  className="input mono"
+                  style={{ flex: '1.3 1 230px', fontSize: 12 }}
+                  placeholder="API Key AccuWeather (opcional — s/ chave usa Estação Real)"
+                  value={formulario.chave_api_accuweather || ''}
+                  onChange={(e) => definirFormulario((atual) => ({ ...atual, chave_api_accuweather: e.target.value }))}
+                />
+              )}
+            </div>
+
+            {(formulario.provedor_clima || 'accuweather') === 'accuweather' && !formulario.chave_api_accuweather && (
+              <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
+                <span>
+                  Consultando clima de <strong>{formulario.cidade}</strong> ({Number(formulario.latitude).toFixed(4)}, {Number(formulario.longitude).toFixed(4)}). Sem chave preenchida, utiliza automaticamente a <strong>Estação Meteorológica Terrestre Real</strong>.
                 </span>
-
-                <button
-                  type="button"
-                  className="btn btn-sm btn-primary"
-                  disabled={testandoClima}
-                  onClick={() => testarApiDeClimaNoEndereco()}
-                >
-                  <IconeTestar size={13} /> {testandoClima ? 'Consultando clima…' : 'Testar clima neste endereço'}
-                </button>
+                <a href="https://developer.accuweather.com/" target="_blank" rel="noreferrer" style={{ color: 'var(--neural-teal)', fontWeight: 600 }}>
+                  Obter chave da AccuWeather ↗
+                </a>
               </div>
+            )}
 
-              <div className="mode-config-row">
-                <select
-                  aria-label="Provedor da API de Clima"
-                  className="select"
-                  style={{ flex: '1 1 240px', fontSize: 12.5 }}
-                  value={formulario.provedor_clima || 'accuweather'}
-                  onChange={(e) => {
-                    definirFormulario((atual) => ({ ...atual, provedor_clima: e.target.value }));
-                    definirResultadoClima(null);
-                  }}
+            <div className="quick-places-row">
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Testar outros locais rápidos no mapa e clima:</span>
+              {[
+                { rotulo: 'Igarassu, PE', cidade: 'Igarassu, Pernambuco', latitude: -7.8342, longitude: -34.9064 },
+                { rotulo: 'Boa Viagem, Recife', cidade: 'Boa Viagem, Recife - PE', latitude: -8.1195, longitude: -34.8988 },
+                { rotulo: 'Petrolina, PE', cidade: 'Petrolina, Pernambuco', latitude: -9.3891, longitude: -40.503 },
+                { rotulo: 'Av. Paulista, SP', cidade: 'Avenida Paulista, São Paulo - SP', latitude: -23.5614, longitude: -46.6559 },
+              ].map((loc) => (
+                <button
+                  key={loc.rotulo}
+                  type="button"
+                  className="mini-preset"
+                  disabled={testandoClima}
+                  onClick={() => testarApiDeClimaNoEndereco(loc)}
                 >
-                  <option value="accuweather">AccuWeather API (Hiperlocal + Termômetro Real)</option>
-                  <option value="estacao_local">Estação Meteorológica Real (METAR · Sem chave)</option>
-                  <option value="open_meteo">Open-Meteo Satélite (Grade Terrestre)</option>
-                </select>
+                  {loc.rotulo}
+                </button>
+              ))}
+            </div>
 
-                {(formulario.provedor_clima || 'accuweather') === 'accuweather' && (
-                  <input
-                    aria-label="API Key da AccuWeather"
-                    type="password"
-                    className="input mono"
-                    style={{ flex: '1.3 1 220px', fontSize: 12 }}
-                    placeholder="API Key AccuWeather (opcional — s/ chave usa Estação Real 30°C)"
-                    value={formulario.chave_api_accuweather || ''}
-                    onChange={(e) => definirFormulario((atual) => ({ ...atual, chave_api_accuweather: e.target.value }))}
-                  />
+            {resultadoClima?.ok && (
+              <div className="api-test-result is-ok" role="status" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 14px', alignItems: 'center' }}>
+                  <span>✓ {resultadoClima.fonte || 'Clima conectado'} ({resultadoClima.latencia_ms} ms)</span>
+                  <span>
+                    Temperatura: <strong>{formatarNumero(resultadoClima.temperatura_c, 1)} °C</strong>
+                    {resultadoClima.sensacao_c !== null && resultadoClima.sensacao_c !== undefined
+                      ? ` (Sensação ${formatarNumero(resultadoClima.sensacao_c, 0)} °C)`
+                      : ''}
+                  </span>
+                  <span>Sol agora: <strong>{formatarNumero(resultadoClima.irradiancia_wm2, 0)} W/m²</strong></span>
+                  <span>Nuvens: <strong>{formatarNumero(resultadoClima.nuvens_pct, 0)}%</strong></span>
+                  <span>Vento: <strong>{formatarNumero(resultadoClima.vento_kmh, 1)} km/h</strong></span>
+                </div>
+                {resultadoClima.aviso_chave && (
+                  <span style={{ fontSize: 11, fontWeight: 500, opacity: 0.9 }}>{resultadoClima.aviso_chave}</span>
                 )}
               </div>
-
-              {(formulario.provedor_clima || 'accuweather') === 'accuweather' && !formulario.chave_api_accuweather && (
-                <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
-                  <span>
-                    Sem chave preenchida, o sistema usa automaticamente a <strong>Estação Meteorológica Terrestre Real</strong> (que mede a temperatura real em terra, sem distorção marítima).
-                  </span>
-                  <a href="https://developer.accuweather.com/" target="_blank" rel="noreferrer" style={{ color: 'var(--neural-teal)', fontWeight: 600 }}>
-                    Gerar API Key grátis na AccuWeather ↗
-                  </a>
-                </div>
-              )}
-
-              <div className="mode-config-row">
-                <input
-                  aria-label="Escolher outro endereço na API de Clima"
-                  className="input"
-                  style={{ flex: '2 1 280px', fontSize: 12.5 }}
-                  placeholder="Mudar endereço da API de Clima (rua, bairro, CEP ou cidade — igual ao Google Maps)…"
-                  value={termoClima}
-                  onChange={(e) => definirTermoClima(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      buscarEnderecoNaApiClima();
-                    }
-                  }}
-                />
-                <button type="button" className="btn" disabled={buscandoClima || !termoClima.trim()} onClick={buscarEnderecoNaApiClima}>
-                  <IconeBusca size={14} /> {buscandoClima ? 'Buscando…' : 'Buscar endereço'}
-                </button>
+            )}
+            {resultadoClima?.ok === false && (
+              <div className="api-test-result is-err" role="alert">
+                Não foi possível consultar o clima neste endereço. Confira o provedor e tente novamente.
               </div>
+            )}
+          </div>
+        </div>
+      </section>
 
-              {enderecosClima.length > 0 && (
-                <div className="city-dropdown" style={{ margin: 0 }}>
-                  {enderecosClima.map((cid, idx) => {
-                    const nomeCompleto = cid.estado ? `${cid.nome}, ${cid.estado}` : cid.nome;
-                    return (
-                      <button
-                        key={`clima-${cid.latitude}-${idx}`}
-                        type="button"
-                        className="city-option"
-                        onClick={() =>
-                          testarApiDeClimaNoEndereco({
-                            cidade: nomeCompleto,
-                            latitude: cid.latitude,
-                            longitude: cid.longitude,
-                          })
-                        }
-                      >
-                        <span>
-                          <strong>{cid.nome}</strong> {cid.estado ? `— ${cid.estado}` : ''}
-                        </span>
-                        <span className="mono" style={{ color: 'var(--neural-teal)', fontSize: 11 }}>
-                          Usar no Mapa e Clima
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-
-              <div className="quick-places-row">
-                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Endereços rápidos:</span>
-                {[
-                  { rotulo: 'Igarassu, PE', cidade: 'Igarassu, Pernambuco', latitude: -7.8342, longitude: -34.9064 },
-                  { rotulo: 'Boa Viagem, Recife', cidade: 'Boa Viagem, Recife - PE', latitude: -8.1195, longitude: -34.8988 },
-                  { rotulo: 'Petrolina, PE', cidade: 'Petrolina, Pernambuco', latitude: -9.3891, longitude: -40.503 },
-                  { rotulo: 'Av. Paulista, SP', cidade: 'Avenida Paulista, São Paulo - SP', latitude: -23.5614, longitude: -46.6559 },
-                ].map((loc) => (
-                  <button
-                    key={loc.rotulo}
-                    type="button"
-                    className="mini-preset"
-                    disabled={testandoClima}
-                    onClick={() => testarApiDeClimaNoEndereco(loc)}
-                  >
-                    {loc.rotulo}
-                  </button>
-                ))}
-              </div>
-
-              {resultadoClima?.ok && (
-                <div className="api-test-result is-ok" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 14px', alignItems: 'center' }}>
-                    <span>✓ {resultadoClima.fonte || 'Clima conectado'} ({resultadoClima.latencia_ms} ms)</span>
-                    <span>
-                      Temperatura: <strong>{formatarNumero(resultadoClima.temperatura_c, 1)} °C</strong>
-                      {resultadoClima.sensacao_c !== null && resultadoClima.sensacao_c !== undefined
-                        ? ` (Sensação ${formatarNumero(resultadoClima.sensacao_c, 0)} °C)`
-                        : ''}
-                    </span>
-                    <span>Sol agora: <strong>{formatarNumero(resultadoClima.irradiancia_wm2, 0)} W/m²</strong></span>
-                    <span>Nuvens: <strong>{formatarNumero(resultadoClima.nuvens_pct, 0)}%</strong></span>
-                    <span>Vento: <strong>{formatarNumero(resultadoClima.vento_kmh, 1)} km/h</strong></span>
-                  </div>
-                  {resultadoClima.aviso_chave && (
-                    <span style={{ fontSize: 11, fontWeight: 500, opacity: 0.9 }}>{resultadoClima.aviso_chave}</span>
-                  )}
-                </div>
-              )}
-
-              <div className="mode-explain-strip" style={{ marginTop: 2 }}>
-                <span><strong>Tempo real:</strong> calcula kW agora pelo clima deste endereço</span>
-                <span>·</span>
-                <span><strong>Previsão 24h:</strong> usa o sol previsto deste local</span>
-                <span>·</span>
-                <span><strong>Saúde das placas:</strong> compara seu kWh lançado com o clima daqui</span>
-              </div>
-            </div>
-          )}
-
-          {formulario.modo_conexao_inversor === 'api_inversor' && (
-            <div className="mode-config-inline">
-              {(formulario.url_api_inversor || '').toLowerCase().includes('solarnetwork.net') && (
-                <div className="test-only-callout" role="note">
-                  <strong>Aviso importante — API apenas para título de teste:</strong> este conector SolarNetwork consulta um inversor público externo só para testar a comunicação no código e <strong>não mostra a geração real da sua usina</strong>. Caso não tenha o link/IP real do seu inversor, escolha <strong>Clima + Manual</strong> acima.
-                </div>
-              )}
-
-              <div className="mode-config-row">
-                <select
-                  aria-label="Conector do inversor"
-                  className="select"
-                  style={{ flex: '1 1 240px' }}
-                  value={MODELOS_API_INVERSOR.find((m) => m.url === formulario.url_api_inversor)?.id || 'custom'}
-                  onChange={(e) => {
-                    const m = MODELOS_API_INVERSOR.find((item) => item.id === e.target.value);
-                    if (m) {
-                      definirFormulario((atual) => ({
-                        ...atual,
-                        provedor_inversor: m.nome.split('·')[0].trim(),
-                        url_api_inversor: m.url || atual.url_api_inversor,
-                        campo_potencia_json: m.campo,
-                        unidade_potencia_api: m.unidade,
-                      }));
-                      definirResultadoTesteApi(null);
-                    }
-                  }}
-                >
-                  {MODELOS_API_INVERSOR.map((m) => (
-                    <option key={m.id} value={m.id}>{m.nome}</option>
-                  ))}
-                </select>
-
-                <input
-                  aria-label="URL da API do inversor"
-                  className="input mono"
-                  style={{ flex: '2 1 280px', fontSize: 12 }}
-                  placeholder="https://endereco-da-api-do-inversor..."
-                  value={formulario.url_api_inversor || ''}
-                  onChange={(e) => definirFormulario({ ...formulario, url_api_inversor: e.target.value })}
-                />
-
-                <button type="button" className="btn" disabled={testandoApi || !formulario.url_api_inversor} onClick={testarConexaoInversor}>
-                  <IconeTestar size={14} /> {testandoApi ? 'Testando…' : 'Testar conexão'}
-                </button>
-              </div>
-
-              <details className="subtle-details">
-                <summary>Credenciais e mapeamento JSON (opcional)</summary>
-                <div className="form-grid-3" style={{ marginTop: 10 }}>
-                  <div className="field-group">
-                    <label className="field-label" htmlFor="api-campo-json">Campo JSON</label>
-                    <input id="api-campo-json" className="input mono" value={formulario.campo_potencia_json || ''} onChange={(e) => definirFormulario({ ...formulario, campo_potencia_json: e.target.value })} />
-                  </div>
-                  <div className="field-group">
-                    <label className="field-label" htmlFor="api-unidade">Unidade</label>
-                    <select id="api-unidade" className="select" value={formulario.unidade_potencia_api || 'W'} onChange={(e) => definirFormulario({ ...formulario, unidade_potencia_api: e.target.value })}>
-                      <option value="W">Watts (W)</option>
-                      <option value="kW">Quilowatts (kW)</option>
-                    </select>
-                  </div>
-                  <div className="field-group">
-                    <label className="field-label" htmlFor="api-token">Token / API Key</label>
-                    <input id="api-token" type="password" className="input mono" placeholder="Opcional" value={formulario.token_api_inversor || ''} onChange={(e) => definirFormulario({ ...formulario, token_api_inversor: e.target.value })} />
-                  </div>
-                </div>
-              </details>
-
-              {resultadoTesteApi && (
-                <div className={`api-test-result ${resultadoTesteApi.ok ? 'is-ok' : 'is-err'}`}>
-                  {resultadoTesteApi.mensagem}
-                </div>
-              )}
-            </div>
-          )}
-
-          {formulario.modo_conexao_inversor === 'webhook_push' && (
-            <div className="mode-explain-strip mono" style={{ fontSize: 11.5 }}>
-              Endpoint receptor ativo: <strong>POST http://127.0.0.1:8000/api/tempo-real/leitura</strong> · JSON: <code>{'{"potencia_kw": 3.5}'}</code>
-            </div>
+      {/* CARD SEPARADO E INDEPENDENTE: CONEXÃO COM INVERSOR OU MEDIDOR (FONTE DE MEDIÇÃO DA GERAÇÃO) */}
+      <section className="card">
+        <div className="connection-selector-head">
+          <div>
+            <span className="field-label" style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 14 }}>
+              Como você vai informar a geração da usina?
+            </span>
+            <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--text-secondary)' }}>
+              Escolha de onde vêm as medições de energia. A previsão usa o clima do endereço em qualquer uma das opções.
+            </p>
+          </div>
+          {aoIrParaAba && (
+            <button type="button" className="link-subtle-btn" onClick={() => aoIrParaAba('apis')}>
+              Ver painel de APIs →
+            </button>
           )}
         </div>
+
+        <div className="mode-cards-grid" style={{ marginTop: 12 }} role="radiogroup" aria-label="Fonte de leitura da geração da usina">
+          <button
+            type="button"
+            role="radio"
+            aria-checked={formulario.modo_conexao_inversor === 'manual'}
+            className={`mode-choice-card ${formulario.modo_conexao_inversor === 'manual' ? 'is-active' : ''}`}
+            onClick={() => {
+              definirFormulario({ ...formulario, modo_conexao_inversor: 'manual' });
+              definirResultadoTesteApi(null);
+            }}
+          >
+            <div className="mode-choice-top">
+              <strong style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <IconeManual size={15} color="var(--neural-teal)" /> Sem conexão (Manual)
+              </strong>
+              <span className="mode-tag">Sem hardware</span>
+            </div>
+            <p>Acompanhe as estimativas. Para comparar com a geração medida, digite os kWh ou importe um arquivo CSV.</p>
+          </button>
+
+          <button
+            type="button"
+            role="radio"
+            aria-checked={formulario.modo_conexao_inversor === 'api_inversor'}
+            className={`mode-choice-card ${formulario.modo_conexao_inversor === 'api_inversor' ? 'is-active' : ''}`}
+            onClick={() => definirFormulario({ ...formulario, modo_conexao_inversor: 'api_inversor' })}
+          >
+            <div className="mode-choice-top">
+              <strong style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <IconeConexao size={15} color="var(--solar-amber)" /> API do Inversor
+              </strong>
+              <span className="mode-tag">HTTP / JSON</span>
+            </div>
+            <p>Busca a potência direto do software/API do inversor (Fronius, Shelly, nuvem ou SolarNetwork para teste).</p>
+          </button>
+
+          <button
+            type="button"
+            role="radio"
+            aria-checked={formulario.modo_conexao_inversor === 'webhook_push'}
+            className={`mode-choice-card ${formulario.modo_conexao_inversor === 'webhook_push' ? 'is-active' : ''}`}
+            onClick={() => {
+              definirFormulario({ ...formulario, modo_conexao_inversor: 'webhook_push' });
+              definirResultadoTesteApi(null);
+            }}
+          >
+            <div className="mode-choice-top">
+              <strong style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <IconeWebhook size={15} color="var(--sky-hybrid)" /> Webhook Local
+              </strong>
+              <span className="mode-tag">Home Assistant</span>
+            </div>
+            <p>Seu medidor Wi-Fi, ESP32 ou automação envia as leituras via rede local direto para o Helionta.</p>
+          </button>
+        </div>
+
+        {formulario.modo_conexao_inversor === 'manual' && (
+          <div className="mode-explain-strip">
+            <span><strong>Modo sem inversor ativo:</strong> nenhum equipamento externo é consultado</span>
+            <span>·</span>
+            <span><strong>API de Clima acima</strong> continua alimentando o Tempo real e a Previsão 24h</span>
+            <span>·</span>
+            <span><strong>Histórico:</strong> lance kWh/dia ou CSV manualmente</span>
+          </div>
+        )}
+
+        {formulario.modo_conexao_inversor === 'api_inversor' && (
+          <div className="mode-config-inline">
+            {(formulario.url_api_inversor || '').toLowerCase().includes('solarnetwork.net') && (
+              <div className="test-only-callout" role="note">
+                <strong>Aviso importante — API apenas para título de teste:</strong> este conector SolarNetwork consulta um inversor público externo só para testar a comunicação no código e <strong>não mostra a geração real da sua usina</strong>. Caso não tenha o link/IP real do seu inversor, escolha <strong>Sem conexão (Manual)</strong> acima.
+              </div>
+            )}
+
+            <div className="mode-config-row">
+              <select
+                aria-label="Conector do inversor"
+                className="select"
+                style={{ flex: '1 1 240px' }}
+                value={MODELOS_API_INVERSOR.find((m) => m.url === formulario.url_api_inversor)?.id || 'custom'}
+                onChange={(e) => {
+                  const m = MODELOS_API_INVERSOR.find((item) => item.id === e.target.value);
+                  if (m) {
+                    definirFormulario((atual) => ({
+                      ...atual,
+                      provedor_inversor: m.nome.split('·')[0].trim(),
+                      url_api_inversor: m.url || atual.url_api_inversor,
+                      campo_potencia_json: m.campo,
+                      unidade_potencia_api: m.unidade,
+                    }));
+                    definirResultadoTesteApi(null);
+                  }
+                }}
+              >
+                {MODELOS_API_INVERSOR.map((m) => (
+                  <option key={m.id} value={m.id}>{m.nome}</option>
+                ))}
+              </select>
+
+              <input
+                aria-label="URL da API do inversor"
+                className="input mono"
+                style={{ flex: '2 1 280px', fontSize: 12 }}
+                placeholder="https://endereco-da-api-do-inversor..."
+                value={formulario.url_api_inversor || ''}
+                onChange={(e) => definirFormulario({ ...formulario, url_api_inversor: e.target.value })}
+              />
+
+              <button type="button" className="btn" disabled={testandoApi || !formulario.url_api_inversor} onClick={testarConexaoInversor}>
+                <IconeTestar size={14} /> {testandoApi ? 'Testando…' : 'Testar conexão'}
+              </button>
+            </div>
+
+            <details className="subtle-details">
+              <summary>Credenciais e mapeamento JSON (opcional)</summary>
+              <div className="form-grid-3" style={{ marginTop: 10 }}>
+                <div className="field-group">
+                  <label className="field-label" htmlFor="api-campo-json">Campo JSON</label>
+                  <input id="api-campo-json" className="input mono" value={formulario.campo_potencia_json || ''} onChange={(e) => definirFormulario({ ...formulario, campo_potencia_json: e.target.value })} />
+                </div>
+                <div className="field-group">
+                  <label className="field-label" htmlFor="api-unidade">Unidade</label>
+                  <select id="api-unidade" className="select" value={formulario.unidade_potencia_api || 'W'} onChange={(e) => definirFormulario({ ...formulario, unidade_potencia_api: e.target.value })}>
+                    <option value="W">Watts (W)</option>
+                    <option value="kW">Quilowatts (kW)</option>
+                  </select>
+                </div>
+                <div className="field-group">
+                  <label className="field-label" htmlFor="api-token">Token / API Key</label>
+                  <input id="api-token" type="password" className="input mono" placeholder="Opcional" value={formulario.token_api_inversor || ''} onChange={(e) => definirFormulario({ ...formulario, token_api_inversor: e.target.value })} />
+                </div>
+              </div>
+            </details>
+
+            {resultadoTesteApi && (
+              <div className={`api-test-result ${resultadoTesteApi.ok ? 'is-ok' : 'is-err'}`}>
+                {resultadoTesteApi.mensagem}
+              </div>
+            )}
+          </div>
+        )}
+
+        {formulario.modo_conexao_inversor === 'webhook_push' && (
+          <div className="mode-explain-strip mono" style={{ fontSize: 11.5 }}>
+            Endpoint receptor ativo: <strong>POST http://127.0.0.1:8000/api/tempo-real/leitura</strong> · JSON: <code>{'{"potencia_kw": 3.5}'}</code>
+          </div>
+        )}
 
         {/* BARRA INFERIOR OBJETIVA */}
         <div className="step1-footer-bar">

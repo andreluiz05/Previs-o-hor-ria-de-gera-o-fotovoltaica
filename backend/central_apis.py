@@ -258,6 +258,11 @@ class CentralApisProjeto:
 
         prov_clima = cfg.get("provedor_clima", "accuweather")
         tem_chave_aw = bool(cfg.get("chave_api_accuweather"))
+        url_clima = f"https://wttr.in/{cfg['latitude']},{cfg['longitude']}?format=j1"
+        if prov_clima == "open_meteo":
+            url_clima = f"https://api.open-meteo.com/v1/forecast?latitude={cfg['latitude']}&longitude={cfg['longitude']}&current=temperature_2m&cell_selection=land"
+        elif prov_clima == "accuweather" and tem_chave_aw:
+            url_clima = "https://dataservice.accuweather.com/locations/v1/cities/geoposition/search"
 
         apis_nativas = [
             {
@@ -279,7 +284,7 @@ class CentralApisProjeto:
                     else "Clima em tempo real e previsão horária de 24h"
                 ),
                 "categoria": "clima",
-                "url": f"https://wttr.in/{cfg['latitude']},{cfg['longitude']}?format=j1",
+                "url": url_clima,
                 "ativa": True,
                 "editavel": False,
             },

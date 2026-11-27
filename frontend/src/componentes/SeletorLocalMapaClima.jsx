@@ -23,7 +23,7 @@ export default function SeletorLocalMapaClima({
   estadoSistema,
   aoLocalAtualizado,
   alturaMapa = 250,
-  titulo = 'API de Clima e Localização (Open-Meteo + Google Maps)',
+  titulo = 'Clima e localização da usina',
   subtitulo = 'Busque qualquer rua, bairro, CEP ou cidade para mudar o ponto meteorológico consultado pela API de Clima.',
 }) {
   const cfg = estadoSistema?.config || {};
@@ -119,9 +119,6 @@ export default function SeletorLocalMapaClima({
           </div>
         </div>
 
-        <span className="integration-dot-badge on">
-          api.open-meteo.com · Ativa
-        </span>
       </div>
 
       <div className="split-equal" style={{ alignItems: 'start', marginTop: 14 }}>
@@ -225,7 +222,7 @@ export default function SeletorLocalMapaClima({
             </div>
 
             <span className="mono" style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-              Coordenadas ativas na Open-Meteo: {localAtivo.latitude.toFixed(4)}, {localAtivo.longitude.toFixed(4)}
+              Coordenadas da previsão: {localAtivo.latitude.toFixed(4)}, {localAtivo.longitude.toFixed(4)}
             </span>
 
             {climaAoVivo?.ok && (
