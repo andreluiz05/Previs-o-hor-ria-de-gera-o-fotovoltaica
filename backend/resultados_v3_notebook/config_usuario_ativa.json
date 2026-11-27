@@ -1,5 +1,5 @@
 {
-  "nome": "Sistema Solar Residencial",
+  "nome": "Usina Solar Principal",
   "cidade": "Igarassu, Pernambuco",
   "latitude": -7.8342,
   "longitude": -34.9064,
@@ -19,5 +19,11 @@
   "perdas_dc": 0.08,
   "azimute_graus": 0.0,
   "albedo": 0.2,
-  "tarifa_energia_rs": 0.9
+  "tarifa_energia_rs": 0.92,
+  "modo_conexao_inversor": "api_inversor",
+  "provedor_inversor": "SolarNetwork · API Real Online",
+  "url_api_inversor": "https://data.solarnetwork.net/solarquery/api/v1/pub/datum/mostRecent?nodeId=1000&sourceId=%2F0145%2FS1%2FG1%2FINV%2F2",
+  "token_api_inversor": "",
+  "campo_potencia_json": "data.results.0.watts",
+  "unidade_potencia_api": "W"
 }

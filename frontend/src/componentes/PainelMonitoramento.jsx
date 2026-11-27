@@ -35,6 +35,8 @@ function CentralAoVivo({ estadoSistema }) {
   const [potenciaInput, definirPotenciaInput] = useState('');
   const [origemInput, definirOrigemInput] = useState('Inversor Principal');
   const [enviando, definirEnviando] = useState(false);
+  const [sincronizandoApi, definirSincronizandoApi] = useState(false);
+  const [avisoSync, definirAvisoSync] = useState('');
 
   const atualizarAgora = async (signal) => {
     try {
@@ -87,8 +89,23 @@ function CentralAoVivo({ estadoSistema }) {
   };
 
   const desconectarLeiturasManuais = async () => {
-    try { definirDados(await clienteApi.limparLeiturasTempoReal()); }
+    try { definirDados(await clienteApi.limparLeiturasTempoReal()); definirAvisoSync(''); }
     catch (e) { definirErro(e.message); }
+  };
+
+  const puxarDaApiDoInversor = async () => {
+    definirSincronizandoApi(true);
+    definirErro('');
+    definirAvisoSync('');
+    try {
+      const resp = await clienteApi.sincronizarApiInversorTempoReal();
+      definirDados(resp.estado_tempo_real);
+      definirAvisoSync(`API sincronizada (${resp.leitura_api.latencia_ms} ms): ${formatarNumero(resp.leitura_api.potencia_kw, 3)} kW recebidos de ${resp.leitura_api.origem}.`);
+    } catch (e) {
+      definirErro(e.message || 'Falha ao consultar API do inversor.');
+    } finally {
+      definirSincronizandoApi(false);
+    }
   };
 
   if (carregando && !dados) {
@@ -123,9 +140,23 @@ function CentralAoVivo({ estadoSistema }) {
           <span className="mono" style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
             Atualizado às {dados.horario_formatado} · {dados.usina_cidade}
           </span>
-          <button type="button" className="btn btn-sm" style={{ marginLeft: 'auto' }} onClick={() => atualizarAgora()}>
-            <RefreshCw size={13} /> Atualizar agora
-          </button>
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {estadoSistema?.config?.modo_conexao_inversor === 'api_inversor' && (
+              <button type="button" className="btn btn-sm btn-primary" disabled={sincronizandoApi} onClick={puxarDaApiDoInversor}>
+                <PlugZap size={13} /> {sincronizandoApi ? 'Consultando API…' : 'Ler API do inversor agora'}
+              </button>
+            )}
+            <button type="button" className="btn btn-sm" onClick={() => atualizarAgora()}>
+              <RefreshCw size={13} /> Atualizar clima
+            </button>
+          </div>
+        </div>
+      )}
+
+      {avisoSync && (
+        <div className="notice-banner teal" role="status">
+          <CheckCircle2 size={17} color="var(--neural-teal)" />
+          <div>{avisoSync}</div>
         </div>
       )}
 

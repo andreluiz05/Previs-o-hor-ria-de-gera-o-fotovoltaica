@@ -1,5 +1,5 @@
 import React, { lazy, Suspense, useCallback, useEffect, useState } from 'react';
-import { Sun, Zap, CloudSun, Activity, ChartNoAxesCombined, Compass, Settings2, AlertTriangle, ArrowUpRight, Menu, X, ChevronRight } from 'lucide-react';
+import { Sun, Zap, CloudSun, Activity, PlugZap, ChartNoAxesCombined, Compass, Settings2, AlertTriangle, ArrowUpRight, Menu, X, ChevronRight } from 'lucide-react';
 import { clienteApi } from './api/clienteApi';
 import CabecalhoEfemerides from './componentes/CabecalhoEfemerides';
 import TrilhaGuiada from './componentes/TrilhaGuiada';
@@ -9,6 +9,7 @@ const PainelMinhaUsina = lazy(() => import('./componentes/PainelMinhaUsina'));
 const PainelMonitoramento = lazy(() => import('./componentes/PainelMonitoramento'));
 const PainelPrevisaoOperacional = lazy(() => import('./componentes/PainelPrevisaoOperacional'));
 const PainelConsultaComparacao = lazy(() => import('./componentes/PainelConsultaComparacao'));
+const PainelCentralApis = lazy(() => import('./componentes/PainelCentralApis'));
 const PainelBenchmark = lazy(() => import('./componentes/PainelBenchmark'));
 const PainelLaboratorioFisico = lazy(() => import('./componentes/PainelLaboratorioFisico'));
 const PainelTreinamentoDados = lazy(() => import('./componentes/PainelTreinamentoDados'));
@@ -18,6 +19,7 @@ const ABAS = [
   { id: 'monitoramento', passo: 2, titulo: 'Energia em tempo real', menu: '2. Tempo real', descricao: 'Potência instantânea agora, acumulado do dia e leitura ao vivo do inversor.', Icone: Zap, grupo: 'Sua operação' },
   { id: 'operacional', passo: 3, titulo: 'Previsão 24h', menu: '3. Previsão 24h', descricao: 'Energia e economia esperadas nas próximas horas com o clima real.', Icone: CloudSun, grupo: 'Sua operação' },
   { id: 'consulta', passo: 4, titulo: 'Histórico e saúde', menu: '4. Histórico e saúde', descricao: 'Registre a geração e receba alertas de sujeira nas placas, sombra ou falha elétrica.', Icone: Activity, grupo: 'Sua operação' },
+  { id: 'apis', titulo: 'APIs e conexões', menu: '5. APIs e conexões', descricao: 'Veja todas as APIs ativas do projeto, teste a resposta ao vivo e cadastre APIs personalizadas.', Icone: PlugZap, grupo: 'Sua operação' },
   { id: 'benchmark', titulo: 'Comparar algoritmos', menu: 'Comparar algoritmos', descricao: 'Métricas detalhadas dos 7 modelos de previsão.', Icone: ChartNoAxesCombined, grupo: 'Análise e inteligência' },
   { id: 'fisica', titulo: 'Simulador físico "E se?"', menu: 'Simulador físico "E se?"', descricao: 'Teste inclinação, direção e sobrecarga do inversor.', Icone: Compass, grupo: 'Análise e inteligência' },
   { id: 'treino', titulo: 'Calibrar IA', menu: 'Calibrar IA', descricao: 'Retreine as redes neurais para o porte da instalação.', Icone: Settings2, grupo: 'Análise e inteligência' },
@@ -120,7 +122,7 @@ export default function AplicacaoSolarV3() {
 
         <nav style={{ marginTop: 22 }}>
           <div className="nav-group">
-            <div className="nav-group-label">Operação (1 a 4)</div>
+            <div className="nav-group-label">Operação (1 a 5)</div>
             {ABAS.filter((item) => item.grupo === 'Sua operação').map(({ id, menu, Icone }) => (
               <a
                 key={id}
@@ -220,6 +222,7 @@ export default function AplicacaoSolarV3() {
                 {abaAtiva === 'monitoramento' && <PainelMonitoramento estadoSistema={estadoSistema} aoIrParaAba={navegar} />}
                 {abaAtiva === 'operacional' && <PainelPrevisaoOperacional estadoSistema={estadoSistema} aoIrParaAba={navegar} />}
                 {abaAtiva === 'consulta' && <PainelConsultaComparacao estadoSistema={estadoSistema} aoIrParaAba={navegar} />}
+                {abaAtiva === 'apis' && <PainelCentralApis aoAtualizarConfig={carregarEstadoSistema} aoIrParaAba={navegar} />}
                 {abaAtiva === 'benchmark' && <PainelBenchmark estadoSistema={estadoSistema} />}
                 {abaAtiva === 'fisica' && <PainelLaboratorioFisico estadoSistema={estadoSistema} />}
                 {abaAtiva === 'treino' && <PainelTreinamentoDados estadoSistema={estadoSistema} aoConcluirTreinamento={carregarEstadoSistema} />}

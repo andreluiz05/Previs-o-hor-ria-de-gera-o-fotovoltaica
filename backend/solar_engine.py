@@ -78,6 +78,12 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "azimute_graus": 0.0,
     "albedo": 0.2,
     "tarifa_energia_rs": 0.92,   # Tarifa média em R$/kWh para cálculo de retorno financeiro
+    "modo_conexao_inversor": "api_inversor",  # 'api_inversor' | 'webhook_push' | 'manual'
+    "provedor_inversor": "SolarNetwork · API Real Online",
+    "url_api_inversor": "https://data.solarnetwork.net/solarquery/api/v1/pub/datum/mostRecent?nodeId=1000&sourceId=%2F0145%2FS1%2FG1%2FINV%2F2",
+    "token_api_inversor": "",
+    "campo_potencia_json": "data.results.0.watts",
+    "unidade_potencia_api": "W",
 }
 
 DEFAULT_SEEDS: list[int] = [42, 123, 2026]
@@ -185,6 +191,13 @@ def validate_config(c: dict[str, Any]) -> dict[str, Any]:
     cfg["latitude"] = float(cfg["latitude"])
     cfg["longitude"] = float(cfg["longitude"])
     cfg["tarifa_energia_rs"] = max(0.0, float(cfg.get("tarifa_energia_rs", 0.92)))
+    modo_con = str(cfg.get("modo_conexao_inversor", "api_inversor")).strip()
+    cfg["modo_conexao_inversor"] = modo_con if modo_con in ("api_inversor", "webhook_push", "manual") else "manual"
+    cfg["provedor_inversor"] = str(cfg.get("provedor_inversor", "")).strip()[:80]
+    cfg["url_api_inversor"] = str(cfg.get("url_api_inversor", "")).strip()[:500]
+    cfg["token_api_inversor"] = str(cfg.get("token_api_inversor", "")).strip()[:300]
+    cfg["campo_potencia_json"] = str(cfg.get("campo_potencia_json", "")).strip()[:120]
+    cfg["unidade_potencia_api"] = "W" if str(cfg.get("unidade_potencia_api", "W")).upper() == "W" else "kW"
 
     limites_validos = (
         cfg["quantidade_placas"] > 0

@@ -583,3 +583,14 @@ button.journey-step:hover { border-color: var(--neural-teal); }
 .live-status-strip { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 10px 14px; border-radius: 10px; background: var(--bg-surface); border: 1px solid var(--border-subtle); }
 .live-pulse-badge { display: inline-flex; align-items: center; gap: 8px; padding: 5px 10px; border-radius: 999px; background: var(--signal-ok-soft); color: var(--signal-ok); font-size: 11px; font-weight: 700; letter-spacing: .4px; }
 .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--signal-ok); box-shadow: 0 0 0 3px rgba(39, 114, 77, .22); }
+
+/* Central de APIs e resultados de teste de conexão */
+.api-list-grid { display: flex; flex-direction: column; gap: 10px; }
+.api-item-card { padding: 14px 16px; border: 1px solid var(--border-subtle); border-radius: 12px; background: var(--bg-subtle); display: flex; flex-direction: column; gap: 8px; }
+.api-item-top { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px; }
+.api-item-title { display: block; font-family: var(--font-display); font-size: 15px; font-weight: 600; margin-top: 6px; }
+.api-item-desc { margin: 2px 0 0; font-size: 12px; color: var(--text-secondary); }
+.api-item-url { font-size: 11px; color: var(--text-muted); padding: 6px 10px; border-radius: 6px; background: var(--bg-surface); border: 1px solid var(--border-subtle); overflow-wrap: anywhere; }
+.api-test-result { font-size: 12px; font-weight: 600; padding: 8px 12px; border-radius: 8px; }
+.api-test-result.is-ok { background: var(--signal-ok-soft); color: var(--signal-ok); }
+.api-test-result.is-err { background: var(--signal-danger-soft); color: var(--signal-danger); }

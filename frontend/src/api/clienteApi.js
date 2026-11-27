@@ -190,6 +190,42 @@ export const clienteApi = {
   limparLeiturasTempoReal: () =>
     fetch(`${BASE_API}/api/tempo-real/leituras`, { method: 'DELETE' }).then(tratarRespostaJson),
 
+  sincronizarApiInversorTempoReal: () =>
+    fetch(`${BASE_API}/api/tempo-real/sincronizar-api`, { method: 'POST' }).then(tratarRespostaJson),
+
+  /** Central de APIs ativas e personalizadas do projeto */
+  obterCentralApis: () => fetch(`${BASE_API}/api/apis`).then(tratarRespostaJson),
+
+  adicionarApiPersonalizada: (dados) =>
+    fetch(`${BASE_API}/api/apis`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(dados),
+    }).then(tratarRespostaJson),
+
+  testarUrlApi: (dados) =>
+    fetch(`${BASE_API}/api/apis/testar-url`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(dados),
+    }).then(tratarRespostaJson),
+
+  testarApiCadastrada: (apiId) =>
+    fetch(`${BASE_API}/api/apis/${encodeURIComponent(apiId)}/testar`, { method: 'POST' }).then(tratarRespostaJson),
+
+  usarApiNoInversorPrincipal: (apiId) =>
+    fetch(`${BASE_API}/api/apis/${encodeURIComponent(apiId)}/usar-no-inversor`, { method: 'POST' }).then(tratarRespostaJson),
+
+  alternarEstadoApi: (apiId, ativa) =>
+    fetch(`${BASE_API}/api/apis/${encodeURIComponent(apiId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ativa }),
+    }).then(tratarRespostaJson),
+
+  excluirApiPersonalizada: (apiId) =>
+    fetch(`${BASE_API}/api/apis/${encodeURIComponent(apiId)}`, { method: 'DELETE' }).then(tratarRespostaJson),
+
   obterMonitoramento: (sessaoId = '', signal) => {
     const parametros = new URLSearchParams();
     if (sessaoId) parametros.set('sessao_id', sessaoId);

@@ -35,6 +35,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
+from central_apis import CentralApisProjeto, testar_endpoint_externo
 from diario_casa import DiarioSolarCasa
 from monitoramento import MonitoramentoSolar
 from fonte_publica import MonitorPublico
@@ -78,6 +79,7 @@ MONITORAMENTO = MonitoramentoSolar(BASE_DIR / "monitoramento" / "telemetria.sqli
 FONTE_PUBLICA = MonitorPublico(BASE_DIR / "monitoramento" / "fonte_publica.sqlite3")
 DIARIO_CASA = DiarioSolarCasa(BASE_DIR / "monitoramento" / "diario_casa.sqlite3")
 TEMPO_REAL = CentralTempoReal(BASE_DIR / "monitoramento" / "tempo_real.sqlite3")
+CENTRAL_APIS = CentralApisProjeto(BASE_DIR / "monitoramento" / "apis_projeto.sqlite3")
 
 
 @asynccontextmanager
@@ -141,6 +143,12 @@ class RequisicaoConfigUsina(BaseModel):
     perdas_dc: float = 0.08
     albedo: float = 0.2
     tarifa_energia_rs: float = 0.92
+    modo_conexao_inversor: str = "api_inversor"
+    provedor_inversor: str = "SolarNetwork · API Real Online"
+    url_api_inversor: str = ""
+    token_api_inversor: str = ""
+    campo_potencia_json: str = "data.results.0.watts"
+    unidade_potencia_api: str = "W"
 
 
 class RequisicaoSimulacaoFisica(BaseModel):
@@ -258,6 +266,109 @@ class RequisicaoLeituraTempoReal(BaseModel):
     potencia_kw: float = Field(ge=0.0, le=500000.0)
     energia_dia_kwh: float | None = Field(default=None, ge=0.0, le=5000000.0)
     origem: str = "Inversor / Medidor"
+
+
+class RequisicaoNovaApiPersonalizada(BaseModel):
+    nome: str
+    categoria: str = "inversor"
+    url: str
+    token: str = ""
+    campo_potencia: str = ""
+    unidade: str = "kW"
+
+
+class RequisicaoTesteUrlApi(BaseModel):
+    url: str
+    token: str = ""
+    campo_potencia: str = ""
+    unidade: str = "W"
+
+
+class RequisicaoAlternarApi(BaseModel):
+    ativa: bool
+
+
+@app.get("/api/apis")
+def listar_central_apis() -> dict[str, Any]:
+    _garantir_artefatos_iniciais()
+    return CENTRAL_APIS.listar_tudo(SAIDA_DIR)
+
+
+@app.post("/api/apis")
+def cadastrar_api_personalizada(req: RequisicaoNovaApiPersonalizada) -> dict[str, Any]:
+    try:
+        return CENTRAL_APIS.adicionar_personalizada(
+            nome=req.nome,
+            categoria=req.categoria,
+            url=req.url,
+            pasta_saida=SAIDA_DIR,
+            token=req.token,
+            campo_potencia=req.campo_potencia,
+            unidade=req.unidade,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/apis/testar-url")
+async def testar_url_api_avulsa(req: RequisicaoTesteUrlApi) -> dict[str, Any]:
+    try:
+        return await run_in_threadpool(
+            testar_endpoint_externo,
+            req.url,
+            req.token,
+            req.campo_potencia,
+            req.unidade,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/apis/{api_id}/testar")
+async def testar_api_cadastrada(api_id: str) -> dict[str, Any]:
+    try:
+        return await run_in_threadpool(CENTRAL_APIS.testar_personalizada, api_id, SAIDA_DIR)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.post("/api/apis/{api_id}/usar-no-inversor")
+def ativar_api_no_inversor_principal(api_id: str) -> dict[str, Any]:
+    try:
+        return CENTRAL_APIS.usar_como_inversor_principal(api_id, SAIDA_DIR)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.patch("/api/apis/{api_id}")
+def alterar_estado_api(api_id: str, req: RequisicaoAlternarApi) -> dict[str, Any]:
+    try:
+        return CENTRAL_APIS.alternar_ativa(api_id, req.ativa, SAIDA_DIR)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.delete("/api/apis/{api_id}")
+def excluir_api_personalizada(api_id: str) -> dict[str, Any]:
+    return CENTRAL_APIS.remover_personalizada(api_id, SAIDA_DIR)
+
+
+@app.post("/api/tempo-real/sincronizar-api")
+async def sincronizar_api_inversor_tempo_real() -> dict[str, Any]:
+    """Consulta ao vivo a API do inversor configurada na usina e registra a leitura no Tempo Real."""
+    _garantir_artefatos_iniciais()
+    try:
+        leitura = await run_in_threadpool(CENTRAL_APIS.ler_inversor_configurado, SAIDA_DIR)
+        estado = await run_in_threadpool(
+            TEMPO_REAL.registrar_leitura_real,
+            leitura["potencia_kw"],
+            SAIDA_DIR,
+            None,
+            leitura["origem"],
+        )
+        return {"leitura_api": leitura, "estado_tempo_real": estado}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.get("/api/tempo-real/agora")
