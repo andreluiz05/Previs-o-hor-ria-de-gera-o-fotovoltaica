@@ -29,9 +29,21 @@ import {
   Calendar,
   BarChart3,
   ShieldCheck,
+  Clock3,
 } from 'lucide-react';
 import { clienteApi } from '../api/clienteApi';
 import { formatarNumero } from '../utilitarios/formatadores';
+
+const LISTA_HORAS_24 = Array.from({ length: 24 }, (_, i) => i);
+
+function obterDataIsoRecife(deslocamentoDias = 0) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Recife',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(Date.now() + deslocamentoDias * 86400000));
+}
 
 function orientacaoCardeal(azimute = 0) {
   const az = ((Number(azimute) || 0) % 360 + 360) % 360;
@@ -293,11 +305,15 @@ export default function PainelResumoInstalacao({ estadoSistema, aoIrParaAba }) {
   const [tempoReal, definirTempoReal] = useState(null);
   const [previsao24h, definirPrevisao24h] = useState(null);
   const [diario, definirDiario] = useState(null);
+  const [dadosDiaEspecifico, definirDadosDiaEspecifico] = useState(null);
   const [carregando, definirCarregando] = useState(true);
+  const [carregandoDia, definirCarregandoDia] = useState(false);
 
-  // Filtros interativos do resumo executivo
-  const [filtroFonte, definirFiltroFonte] = useState('previsao24h'); // 'hoje' | 'previsao24h' | 'historico'
-  const [filtroTurno, definirFiltroTurno] = useState('solar'); // 'todos' | 'solar' | 'pico'
+  // Filtros interativos de Dia exato + Horas exatas (Das XX:00 até YY:00) + Clima + Unidade
+  const [modoData, definirModoData] = useState('dia'); // 'dia' (calendário exato) | 'proximas24h'
+  const [dataEscolhida, definirDataEscolhida] = useState(() => obterDataIsoRecife(0));
+  const [horaInicio, definirHoraInicio] = useState(6);
+  const [horaFim, definirHoraFim] = useState(18);
   const [filtroCeu, definirFiltroCeu] = useState('todos'); // 'todos' | 'limpo' | 'nublado'
   const [filtroUnidade, definirFiltroUnidade] = useState('kwh'); // 'kwh' | 'rs'
   const [escalaComparativo, definirEscalaComparativo] = useState('meses'); // 'dias' | 'semanas' | 'meses' | 'anos'
@@ -310,17 +326,30 @@ export default function PainelResumoInstalacao({ estadoSistema, aoIrParaAba }) {
     form.append('horas', '24');
     form.append('forcar_offline', 'false');
 
-    const [rTempo, rPrev, rDiario] = await Promise.allSettled([
+    const [rTempo, rPrev, rDiario, rDia] = await Promise.allSettled([
       clienteApi.obterTempoRealAgora(),
       clienteApi.executarPrevisaoOperacional(form),
       clienteApi.obterDiarioCasa(),
+      clienteApi.obterResumoDia(dataEscolhida),
     ]);
 
     if (rTempo.status === 'fulfilled') definirTempoReal(rTempo.value);
     if (rPrev.status === 'fulfilled') definirPrevisao24h(rPrev.value);
     if (rDiario.status === 'fulfilled') definirDiario(rDiario.value);
+    if (rDia.status === 'fulfilled') definirDadosDiaEspecifico(rDia.value);
     definirCarregando(false);
   };
+
+  useEffect(() => {
+    let ativo = true;
+    definirCarregandoDia(true);
+    clienteApi
+      .obterResumoDia(dataEscolhida)
+      .then((res) => { if (ativo) definirDadosDiaEspecifico(res); })
+      .catch(() => {})
+      .finally(() => { if (ativo) definirCarregandoDia(false); });
+    return () => { ativo = false; };
+  }, [dataEscolhida]);
 
   useEffect(() => {
     carregarResumo();
@@ -337,37 +366,25 @@ export default function PainelResumoInstalacao({ estadoSistema, aoIrParaAba }) {
     cfg.provedor_clima,
   ]);
 
-  // Normaliza e aplica os filtros escolhidos pelo usuário
+  // Normaliza e aplica os filtros de Dia específico + Intervalo exato de Horas (horaInicio..horaFim) + Céu
   const serieFiltrada = useMemo(() => {
     let base = [];
+    const hMin = Math.min(horaInicio, horaFim);
+    const hMax = Math.max(horaInicio, horaFim);
 
-    if (filtroFonte === 'hoje' && tempoReal?.serie_hoje?.length) {
-      base = tempoReal.serie_hoje.map((item, idx) => {
-        const kwh = Number(item.medido_inversor_kwh ?? item.realizado_estimado_kwh ?? item.projecao_restante_kwh ?? 0);
-        const solBase = Number(item.projecao_restante_kwh ?? item.realizado_estimado_kwh ?? 0);
-        return {
-          rotulo: item.hora,
-          horaInt: idx,
-          principal_kwh: kwh,
-          referencia_kwh: solBase,
-          principal_rs: Number((kwh * tarifa).toFixed(2)),
-          referencia_rs: Number((solBase * tarifa).toFixed(2)),
-          nuvens_pct: Number(item.nuvens_pct ?? 0),
-        };
-      });
-    } else if (filtroFonte === 'historico' && diario?.registros_horarios?.length) {
-      base = diario.registros_horarios.slice(-24).map((item) => {
-        const hInt = Number((item.hora || '00:00').slice(0, 2));
-        return {
-          rotulo: `${item.data?.slice(0, 5) || ''} ${item.hora?.slice(0, 2)}h`,
-          horaInt: hInt,
-          principal_kwh: Number(item.geracao_real_kwh || 0),
-          referencia_kwh: Number(item.previsao_kwh || 0),
-          principal_rs: Number((Number(item.geracao_real_kwh || 0) * tarifa).toFixed(2)),
-          referencia_rs: Number((Number(item.previsao_kwh || 0) * tarifa).toFixed(2)),
-          nuvens_pct: Number(item.nuvens_pct ?? 30),
-        };
-      });
+    if (modoData === 'dia' && dadosDiaEspecifico?.horas?.length) {
+      base = dadosDiaEspecifico.horas.map((item) => ({
+        rotulo: item.hora,
+        horaCompleta: `${dadosDiaEspecifico.data_br} ${item.hora}`,
+        horaInt: item.hora_int,
+        principal_kwh: Number(item.principal_kwh || 0),
+        referencia_kwh: Number(item.referencia_kwh || 0),
+        principal_rs: Number((Number(item.principal_kwh || 0) * tarifa).toFixed(2)),
+        referencia_rs: Number((Number(item.referencia_kwh || 0) * tarifa).toFixed(2)),
+        poa_wm2: Number(item.poa_wm2 ?? 0),
+        temperatura_c: Number(item.temperatura_c ?? 28),
+        nuvens_pct: Number(item.nuvens_pct ?? 0),
+      }));
     } else if (previsao24h?.serie?.length) {
       base = previsao24h.serie.map((item) => {
         const textoHora = item.rotulo?.split(' ').pop() || '00:00';
@@ -376,24 +393,26 @@ export default function PainelResumoInstalacao({ estadoSistema, aoIrParaAba }) {
         const ref = Number(item.referencia_fisica_kwh || 0);
         return {
           rotulo: textoHora,
+          horaCompleta: item.rotulo,
           horaInt: hInt,
           principal_kwh: kwh,
           referencia_kwh: ref,
           principal_rs: Number((kwh * tarifa).toFixed(2)),
           referencia_rs: Number((ref * tarifa).toFixed(2)),
+          poa_wm2: Number(item.shortwave_radiation ?? 0),
+          temperatura_c: Number(item.temperature_2m ?? 28),
           nuvens_pct: Number(item.cloud_cover ?? 0),
         };
       });
     }
 
     return base.filter((p) => {
-      if (filtroTurno === 'solar' && (p.horaInt < 6 || p.horaInt > 18)) return false;
-      if (filtroTurno === 'pico' && (p.horaInt < 10 || p.horaInt > 15)) return false;
+      if (p.horaInt < hMin || p.horaInt > hMax) return false;
       if (filtroCeu === 'limpo' && p.nuvens_pct >= 40) return false;
       if (filtroCeu === 'nublado' && p.nuvens_pct < 40) return false;
       return true;
     });
-  }, [filtroFonte, filtroTurno, filtroCeu, tempoReal, previsao24h, diario, tarifa]);
+  }, [modoData, dadosDiaEspecifico, previsao24h, horaInicio, horaFim, filtroCeu, tarifa]);
 
   // Indicadores calculados em cima do filtro ativo + estimativas mensais/anuais
   const resumoKpis = useMemo(() => {
@@ -568,62 +587,127 @@ export default function PainelResumoInstalacao({ estadoSistema, aoIrParaAba }) {
         />
       </section>
 
-      {/* 2. BARRA DE FILTROS INTERATIVOS */}
-      <section className="card overview-filters-bar" aria-label="Filtros do resumo da usina">
-        <div className="filter-group-inline">
-          <span className="filter-title"><Filter size={13} /> Fonte:</span>
-          <button type="button" className={`mini-preset ${filtroFonte === 'hoje' ? 'is-selected' : ''}`} aria-pressed={filtroFonte === 'hoje'} onClick={() => definirFiltroFonte('hoje')}>
-            Hoje (Tempo real)
-          </button>
-          <button type="button" className={`mini-preset ${filtroFonte === 'previsao24h' ? 'is-selected' : ''}`} aria-pressed={filtroFonte === 'previsao24h'} onClick={() => definirFiltroFonte('previsao24h')}>
-            Próximas 24h
-          </button>
-          <button
-            type="button"
-            className={`mini-preset ${filtroFonte === 'historico' ? 'is-selected' : ''}`}
-            aria-pressed={filtroFonte === 'historico'}
-            disabled={!diario?.possui_registros}
-            title={!diario?.possui_registros ? 'Lance ao menos 1 dia na aba Histórico e saúde para habilitar' : ''}
-            onClick={() => definirFiltroFonte('historico')}
-          >
-            Histórico salvo
-          </button>
+      {/* 2. BARRA DE FILTROS INTERATIVOS: DIA ESPECÍFICO + HORAS EXATAS (DAS / ATÉ) */}
+      <section className="card overview-filters-card" aria-label="Filtros de dia e horas do dashboard">
+        {/* LINHA 1: CALENDÁRIO DO DIA + SELETORES DE HORA INICIAL E FINAL */}
+        <div className="overview-filters-row">
+          <div className="filter-group-inline">
+            <label className="filter-title" htmlFor="filtro-dia-input">
+              <CalendarDays size={14} color="var(--neural-teal)" /> Dia:
+            </label>
+            <input
+              id="filtro-dia-input"
+              type="date"
+              className="input filter-date-input mono"
+              value={dataEscolhida}
+              onChange={(e) => {
+                definirModoData('dia');
+                definirDataEscolhida(e.target.value);
+              }}
+            />
+            <button
+              type="button"
+              className={`mini-preset ${modoData === 'dia' && dataEscolhida === obterDataIsoRecife(-1) ? 'is-selected' : ''}`}
+              onClick={() => { definirModoData('dia'); definirDataEscolhida(obterDataIsoRecife(-1)); }}
+            >
+              Ontem
+            </button>
+            <button
+              type="button"
+              className={`mini-preset ${modoData === 'dia' && dataEscolhida === obterDataIsoRecife(0) ? 'is-selected' : ''}`}
+              onClick={() => { definirModoData('dia'); definirDataEscolhida(obterDataIsoRecife(0)); }}
+            >
+              Hoje
+            </button>
+            <button
+              type="button"
+              className={`mini-preset ${modoData === 'dia' && dataEscolhida === obterDataIsoRecife(1) ? 'is-selected' : ''}`}
+              onClick={() => { definirModoData('dia'); definirDataEscolhida(obterDataIsoRecife(1)); }}
+            >
+              Amanhã
+            </button>
+            <button
+              type="button"
+              className={`mini-preset ${modoData === 'proximas24h' ? 'is-selected' : ''}`}
+              onClick={() => definirModoData('proximas24h')}
+            >
+              Próx. 24h corridas
+            </button>
+          </div>
+
+          <div className="filter-group-inline">
+            <label className="filter-title" htmlFor="filtro-hora-ini">
+              <Clock3 size={14} color="var(--solar-amber)" /> Horas:
+            </label>
+            <select
+              id="filtro-hora-ini"
+              aria-label="Hora inicial"
+              className="select filter-hour-select mono"
+              value={horaInicio}
+              onChange={(e) => definirHoraInicio(Number(e.target.value))}
+            >
+              {LISTA_HORAS_24.map((h) => (
+                <option key={`ini-${h}`} value={h}>{String(h).padStart(2, '0')}:00</option>
+              ))}
+            </select>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>até</span>
+            <select
+              id="filtro-hora-fim"
+              aria-label="Hora final"
+              className="select filter-hour-select mono"
+              value={horaFim}
+              onChange={(e) => definirHoraFim(Number(e.target.value))}
+            >
+              {LISTA_HORAS_24.map((h) => (
+                <option key={`fim-${h}`} value={h}>{String(h).padStart(2, '0')}:00</option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        <div className="filter-group-inline">
-          <span className="filter-title"><SlidersHorizontal size={13} /> Turno:</span>
-          <button type="button" className={`mini-preset ${filtroTurno === 'todos' ? 'is-selected' : ''}`} aria-pressed={filtroTurno === 'todos'} onClick={() => definirFiltroTurno('todos')}>
-            24h
-          </button>
-          <button type="button" className={`mini-preset ${filtroTurno === 'solar' ? 'is-selected' : ''}`} aria-pressed={filtroTurno === 'solar'} onClick={() => definirFiltroTurno('solar')}>
-            Sol (06h–18h)
-          </button>
-          <button type="button" className={`mini-preset ${filtroTurno === 'pico' ? 'is-selected' : ''}`} aria-pressed={filtroTurno === 'pico'} onClick={() => definirFiltroTurno('pico')}>
-            Pico (10h–15h)
-          </button>
-        </div>
+        {/* LINHA 2: ATALHOS RÁPIDOS DE HORÁRIO + CÉU + UNIDADE */}
+        <div className="overview-filters-row" style={{ paddingTop: 10, borderTop: '1px solid var(--border-subtle)' }}>
+          <div className="filter-group-inline">
+            <span className="filter-title"><SlidersHorizontal size={13} /> Atalhos de hora:</span>
+            <button type="button" className={`mini-preset ${horaInicio === 0 && horaFim === 23 ? 'is-selected' : ''}`} onClick={() => { definirHoraInicio(0); definirHoraFim(23); }}>
+              00h–23h (24h)
+            </button>
+            <button type="button" className={`mini-preset ${horaInicio === 6 && horaFim === 18 ? 'is-selected' : ''}`} onClick={() => { definirHoraInicio(6); definirHoraFim(18); }}>
+              Sol (06h–18h)
+            </button>
+            <button type="button" className={`mini-preset ${horaInicio === 6 && horaFim === 12 ? 'is-selected' : ''}`} onClick={() => { definirHoraInicio(6); definirHoraFim(12); }}>
+              Manhã (06h–12h)
+            </button>
+            <button type="button" className={`mini-preset ${horaInicio === 12 && horaFim === 18 ? 'is-selected' : ''}`} onClick={() => { definirHoraInicio(12); definirHoraFim(18); }}>
+              Tarde (12h–18h)
+            </button>
+            <button type="button" className={`mini-preset ${horaInicio === 10 && horaFim === 15 ? 'is-selected' : ''}`} onClick={() => { definirHoraInicio(10); definirHoraFim(15); }}>
+              Pico (10h–15h)
+            </button>
+          </div>
 
-        <div className="filter-group-inline">
-          <span className="filter-title">Céu:</span>
-          <button type="button" className={`mini-preset ${filtroCeu === 'todos' ? 'is-selected' : ''}`} aria-pressed={filtroCeu === 'todos'} onClick={() => definirFiltroCeu('todos')}>
-            Todos
-          </button>
-          <button type="button" className={`mini-preset ${filtroCeu === 'limpo' ? 'is-selected' : ''}`} aria-pressed={filtroCeu === 'limpo'} onClick={() => definirFiltroCeu('limpo')}>
-            Sol aberto
-          </button>
-          <button type="button" className={`mini-preset ${filtroCeu === 'nublado' ? 'is-selected' : ''}`} aria-pressed={filtroCeu === 'nublado'} onClick={() => definirFiltroCeu('nublado')}>
-            Nublado
-          </button>
-        </div>
+          <div className="filter-group-inline">
+            <span className="filter-title"><Filter size={13} /> Céu:</span>
+            <button type="button" className={`mini-preset ${filtroCeu === 'todos' ? 'is-selected' : ''}`} onClick={() => definirFiltroCeu('todos')}>
+              Todos
+            </button>
+            <button type="button" className={`mini-preset ${filtroCeu === 'limpo' ? 'is-selected' : ''}`} onClick={() => definirFiltroCeu('limpo')}>
+              Sol aberto
+            </button>
+            <button type="button" className={`mini-preset ${filtroCeu === 'nublado' ? 'is-selected' : ''}`} onClick={() => definirFiltroCeu('nublado')}>
+              Nublado
+            </button>
+          </div>
 
-        <div className="filter-group-inline" style={{ marginLeft: 'auto' }}>
-          <span className="filter-title">Unidade:</span>
-          <button type="button" className={`mini-preset ${filtroUnidade === 'kwh' ? 'is-selected' : ''}`} aria-pressed={filtroUnidade === 'kwh'} onClick={() => definirFiltroUnidade('kwh')}>
-            Energia (kWh)
-          </button>
-          <button type="button" className={`mini-preset ${filtroUnidade === 'rs' ? 'is-selected' : ''}`} aria-pressed={filtroUnidade === 'rs'} onClick={() => definirFiltroUnidade('rs')}>
-            Reais (R$)
-          </button>
+          <div className="filter-group-inline" style={{ marginLeft: 'auto' }}>
+            <span className="filter-title">Unidade:</span>
+            <button type="button" className={`mini-preset ${filtroUnidade === 'kwh' ? 'is-selected' : ''}`} onClick={() => definirFiltroUnidade('kwh')}>
+              Energia (kWh)
+            </button>
+            <button type="button" className={`mini-preset ${filtroUnidade === 'rs' ? 'is-selected' : ''}`} onClick={() => definirFiltroUnidade('rs')}>
+              Reais (R$)
+            </button>
+          </div>
         </div>
       </section>
 
@@ -709,14 +793,16 @@ export default function PainelResumoInstalacao({ estadoSistema, aoIrParaAba }) {
           <div className="card-header" style={{ marginBottom: 12 }}>
             <div>
               <h3 className="card-title">
-                {filtroFonte === 'hoje'
-                  ? 'Curva de energia de hoje'
-                  : filtroFonte === 'historico'
-                  ? 'Histórico lançado × esperado'
-                  : 'Geração prevista × estimativa básica pelo sol'}
+                {modoData === 'dia'
+                  ? `Curva horária do dia ${dadosDiaEspecifico?.data_br || dataEscolhida} (${String(Math.min(horaInicio, horaFim)).padStart(2, '0')}:00 às ${String(Math.max(horaInicio, horaFim)).padStart(2, '0')}:00)`
+                  : `Próximas 24h corridas (${String(Math.min(horaInicio, horaFim)).padStart(2, '0')}:00 às ${String(Math.max(horaInicio, horaFim)).padStart(2, '0')}:00)`}
               </h3>
               <p className="card-subtitle">
-                Exibindo {serieFiltrada.length} intervalo(s) horários conforme os filtros selecionados acima.
+                {carregandoDia
+                  ? 'Consultando horários do dia selecionado…'
+                  : dadosDiaEspecifico?.possui_lancamento_real && modoData === 'dia'
+                  ? `Exibindo geração real lançada × esperado (${serieFiltrada.length}h visíveis).`
+                  : `Exibindo ${serieFiltrada.length} hora(s) filtradas · Clima: ${dadosDiaEspecifico?.fonte_clima || 'Ativo'}.`}
               </p>
             </div>
           </div>
@@ -745,7 +831,7 @@ export default function PainelResumoInstalacao({ estadoSistema, aoIrParaAba }) {
                   <Area
                     type="monotone"
                     dataKey={chavePrincipal}
-                    name={filtroFonte === 'historico' ? `Gerado (${sufixoUnidade})` : `Geração prevista (${sufixoUnidade})`}
+                    name={modoData === 'dia' && dadosDiaEspecifico?.possui_lancamento_real ? `Gerado (${sufixoUnidade})` : `Geração prevista (${sufixoUnidade})`}
                     stroke="var(--neural-teal)"
                     strokeWidth={2.5}
                     fill="url(#overview-area)"
@@ -768,6 +854,40 @@ export default function PainelResumoInstalacao({ estadoSistema, aoIrParaAba }) {
             <div style={{ padding: '36px 16px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13 }}>
               Nenhum horário corresponde a essa combinação de filtros (ex.: sem horas nubladas no período). Clique em <strong>Todos</strong> em Céu para ver a curva completa.
             </div>
+          )}
+
+          {serieFiltrada.length > 0 && (
+            <details style={{ marginTop: 12 }}>
+              <summary style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-secondary)' }}>
+                Ver tabela hora a hora deste filtro ({serieFiltrada.length}h)
+              </summary>
+              <div className="table-wrap" style={{ maxHeight: 230, marginTop: 10 }}>
+                <table className="data-table mono">
+                  <thead>
+                    <tr>
+                      <th>Hora</th>
+                      <th>Energia</th>
+                      <th>Base Sol</th>
+                      <th>Retorno</th>
+                      <th>Temp.</th>
+                      <th>Nuvens</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {serieFiltrada.map((h) => (
+                      <tr key={h.horaCompleta || h.rotulo}>
+                        <td>{h.rotulo}</td>
+                        <td className="winner-cell">{formatarNumero(h.principal_kwh, 2)} kWh</td>
+                        <td>{formatarNumero(h.referencia_kwh, 2)} kWh</td>
+                        <td>R$ {formatarNumero(h.principal_rs, 2)}</td>
+                        <td>{formatarNumero(h.temperatura_c, 1)} °C</td>
+                        <td>{formatarNumero(h.nuvens_pct, 0)}%</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </details>
           )}
         </section>
 

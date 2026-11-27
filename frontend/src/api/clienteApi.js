@@ -180,6 +180,13 @@ export const clienteApi = {
   obterTempoRealAgora: (signal) =>
     fetch(`${BASE_API}/api/tempo-real/agora`, { signal }).then(tratarRespostaJson),
 
+  /** Consulta hora a hora (00:00–23:00) de qualquer dia escolhido no filtro do dashboard */
+  obterResumoDia: (dataIso = '') => {
+    const params = new URLSearchParams();
+    if (dataIso) params.set('data', dataIso);
+    return fetch(`${BASE_API}/api/resumo-dia?${params.toString()}`).then(tratarRespostaJson);
+  },
+
   enviarLeituraTempoReal: (dados) =>
     fetch(`${BASE_API}/api/tempo-real/leitura`, {
       method: 'POST',

@@ -29,6 +29,8 @@ import SeletorLocalMapaClima from './SeletorLocalMapaClima';
 export default function PainelPrevisaoOperacional({ estadoSistema, aoAtualizarConfig, aoIrParaAba }) {
   const cfgAtiva = estadoSistema?.config || {};
   const [horizonteHoras, definirHorizonteHoras] = useState(24);
+  const [horaIniPrev, definirHoraIniPrev] = useState(0);
+  const [horaFimPrev, definirHoraFimPrev] = useState(23);
   const [mostrarMapaClima, definirMostrarMapaClima] = useState(false);
   const [consultando, definirConsultando] = useState(false);
   const [mensagemErro, definirMensagemErro] = useState('');
@@ -81,6 +83,12 @@ export default function PainelPrevisaoOperacional({ estadoSistema, aoAtualizarCo
   };
 
   const meteo = resultadoPrevisao?.meteorologia;
+  const hMinPrev = Math.min(horaIniPrev, horaFimPrev);
+  const hMaxPrev = Math.max(horaIniPrev, horaFimPrev);
+  const seriePrevisaoFiltrada = (resultadoPrevisao?.serie || []).filter((item) => {
+    const hInt = Number((item.rotulo?.split(' ').pop() || '00:00').slice(0, 2));
+    return hInt >= hMinPrev && hInt <= hMaxPrev;
+  });
 
   return (
     <div className="view-stack forecast-view" aria-busy={consultando}>
@@ -165,6 +173,30 @@ export default function PainelPrevisaoOperacional({ estadoSistema, aoAtualizarCo
                 >
                   <IconeMapa size={14} /> {mostrarMapaClima ? 'Fechar mapa' : 'Mudar endereço / local'}
                 </button>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                  <span style={{ fontSize: 11.5, color: 'var(--text-secondary)', fontWeight: 600 }}>Horas:</span>
+                  <select
+                    aria-label="Hora inicial da previsão"
+                    className="select filter-hour-select mono"
+                    value={horaIniPrev}
+                    onChange={(e) => definirHoraIniPrev(Number(e.target.value))}
+                  >
+                    {Array.from({ length: 24 }, (_, i) => (
+                      <option key={`pi-${i}`} value={i}>{String(i).padStart(2, '0')}:00</option>
+                    ))}
+                  </select>
+                  <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>até</span>
+                  <select
+                    aria-label="Hora final da previsão"
+                    className="select filter-hour-select mono"
+                    value={horaFimPrev}
+                    onChange={(e) => definirHoraFimPrev(Number(e.target.value))}
+                  >
+                    {Array.from({ length: 24 }, (_, i) => (
+                      <option key={`pf-${i}`} value={i}>{String(i).padStart(2, '0')}:00</option>
+                    ))}
+                  </select>
+                </div>
                 <select
                   aria-label="Período da previsão"
                   className="select"
@@ -204,7 +236,7 @@ export default function PainelPrevisaoOperacional({ estadoSistema, aoAtualizarCo
 
             <div className="chart-container">
               <ContainerResponsivo>
-                <GraficoComposto accessibilityLayer data={resultadoPrevisao.serie} margin={{ top: 10, right: 16, left: -15, bottom: 5 }}>
+                <GraficoComposto accessibilityLayer data={seriePrevisaoFiltrada} margin={{ top: 10, right: 16, left: -15, bottom: 5 }}>
                   <defs>
                     <linearGradient id="solar-area" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="var(--neural-teal)" stopOpacity={0.24} />
@@ -238,7 +270,7 @@ export default function PainelPrevisaoOperacional({ estadoSistema, aoAtualizarCo
                     </tr>
                   </thead>
                   <tbody>
-                    {resultadoPrevisao.serie.map((item) => (
+                    {seriePrevisaoFiltrada.map((item) => (
                       <tr key={item.data_hora}>
                         <td>{item.rotulo}</td>
                         <td className="winner-cell">{formatarNumero(item.previsao_lstm_kwh, 2)} kWh</td>

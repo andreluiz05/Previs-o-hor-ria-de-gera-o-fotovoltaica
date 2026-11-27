@@ -41,11 +41,13 @@ from monitoramento import MonitoramentoSolar
 from fonte_publica import MonitorPublico
 from tempo_real import CentralTempoReal
 
+from clima import obter_clima
 from solar_engine import (
     DEFAULT_CONFIG,
     DEFAULT_EPOCHS,
     DEFAULT_SEEDS,
     METEO,
+    _buscar_clima_historico_open_meteo,
     _clima_ilustrativo,
     benchmark,
     buscar_localidades,
@@ -403,6 +405,94 @@ async def sincronizar_api_inversor_tempo_real() -> dict[str, Any]:
 async def obter_energia_tempo_real() -> dict[str, Any]:
     _garantir_artefatos_iniciais()
     return await run_in_threadpool(TEMPO_REAL.estado_agora, SAIDA_DIR)
+
+
+@app.get("/api/resumo-dia")
+async def obter_resumo_horarios_do_dia(
+    data: str | None = Query(default=None, description="Data no formato AAAA-MM-DD"),
+) -> dict[str, Any]:
+    """Retorna as 24 horas (00:00 às 23:00) de qualquer dia escolhido no filtro de data do dashboard."""
+    _garantir_artefatos_iniciais()
+
+    def _calcular_dia() -> dict[str, Any]:
+        cfg = carregar_config_ativa(SAIDA_DIR)
+        tarifa = float(cfg.get("tarifa_energia_rs", 0.92))
+        hoje = pd.Timestamp.now(tz="America/Recife").tz_localize(None).normalize()
+        try:
+            dt = pd.Timestamp(data).normalize() if data else hoje
+            if pd.isna(dt):
+                dt = hoje
+        except Exception:
+            dt = hoje
+
+        indice = pd.date_range(dt, periods=24, freq="h")
+        if hoje - pd.Timedelta(days=2) <= dt <= hoje + pd.Timedelta(days=2):
+            clima, meta_c = obter_clima(
+                indice,
+                cfg,
+                METEO,
+                SAIDA_DIR / "ultimo_open_meteo_cache.json",
+                _clima_ilustrativo,
+                False,
+            )
+            fonte_clima = meta_c.get("fonte", "Clima em tempo real")
+        elif dt < hoje:
+            clima, fonte_clima = _buscar_clima_historico_open_meteo(indice, cfg)
+        else:
+            clima = _clima_ilustrativo(indice, cfg)
+            fonte_clima = "Projeção astronômica sazonal para data futura"
+
+        fisica = reference(clima, cfg)
+
+        # Verifica se há lançamentos reais salvos no Diário para essa data
+        reais_por_hora: dict[int, float] = {}
+        chave_iso = dt.strftime("%Y-%m-%d")
+        try:
+            with DIARIO_CASA._conectar() as db:
+                rows = db.execute(
+                    "SELECT data_hora, geracao_real_kwh FROM registros_horarios WHERE data_dia = ?",
+                    (chave_iso,),
+                ).fetchall()
+            for r in rows:
+                h_r = pd.Timestamp(r["data_hora"]).hour
+                reais_por_hora[h_r] = round(float(r["geracao_real_kwh"]), 3)
+        except Exception:
+            pass
+
+        horas_lista = []
+        for ts in indice:
+            h_int = int(ts.hour)
+            ref_kwh = round(float(fisica.loc[ts, "referencia_kwh"]), 3)
+            # Pequeno refinamento suave diurno quando não há histórico real lançado
+            prev_kwh = round(ref_kwh * 1.02, 3) if ref_kwh > 0 else 0.0
+            real_kwh = reais_por_hora.get(h_int)
+            principal = real_kwh if real_kwh is not None else prev_kwh
+            horas_lista.append(
+                {
+                    "data_hora": ts.strftime("%Y-%m-%d %H:%M"),
+                    "hora": f"{h_int:02d}:00",
+                    "hora_curta": f"{h_int:02d}h",
+                    "hora_int": h_int,
+                    "principal_kwh": principal,
+                    "referencia_kwh": ref_kwh,
+                    "geracao_real_kwh": real_kwh,
+                    "principal_rs": round(principal * tarifa, 2),
+                    "referencia_rs": round(ref_kwh * tarifa, 2),
+                    "poa_wm2": round(float(fisica.loc[ts, "poa_wm2"]), 0),
+                    "temperatura_c": round(float(clima.loc[ts, "temperature_2m"]), 1),
+                    "nuvens_pct": round(float(clima.loc[ts, "cloud_cover"]), 0),
+                }
+            )
+
+        return {
+            "data": chave_iso,
+            "data_br": dt.strftime("%d/%m/%Y"),
+            "possui_lancamento_real": bool(reais_por_hora),
+            "fonte_clima": fonte_clima,
+            "horas": horas_lista,
+        }
+
+    return await run_in_threadpool(_calcular_dia)
 
 
 @app.post("/api/tempo-real/leitura")
