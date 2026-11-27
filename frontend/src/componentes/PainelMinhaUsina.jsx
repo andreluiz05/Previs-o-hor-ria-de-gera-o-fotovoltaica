@@ -7,6 +7,12 @@ import {
   ExternalLink as IconeLinkExterno,
   Layers as IconeCamadasMapa,
   CloudSun as IconeClima,
+  PlugZap as IconeConexao,
+  Radio as IconeWebhook,
+  Home as IconeCasa,
+  Store as IconeComercio,
+  Factory as IconeIndustria,
+  SunMedium as IconeUsina,
   RefreshCw as IconeTestar,
 } from 'lucide-react';
 import { clienteApi } from '../api/clienteApi';
@@ -59,24 +65,28 @@ const PERFIS_RAPIDOS = [
     id: 'residencial',
     titulo: 'Residencial',
     detalhe: '5,5 kWp · 10 placas',
+    Icone: IconeCasa,
     dados: { nome: 'Sistema Solar Residencial', quantidade_placas: 10, potencia_placa_wp: 550, inversor_kw: 5.0, inclinacao_graus: 10, azimute_graus: 0 },
   },
   {
     id: 'comercial',
     titulo: 'Comércio',
     detalhe: '19,8 kWp · 36 placas',
+    Icone: IconeComercio,
     dados: { nome: 'Usina Solar Comercial', quantidade_placas: 36, potencia_placa_wp: 550, inversor_kw: 15.0, inclinacao_graus: 10, azimute_graus: 0 },
   },
   {
     id: 'rural',
     titulo: 'Indústria / Rural',
     detalhe: '49,5 kWp · 90 placas',
+    Icone: IconeIndustria,
     dados: { nome: 'Planta Solar Industrial / Rural', quantidade_placas: 90, potencia_placa_wp: 550, inversor_kw: 40.0, inclinacao_graus: 12, azimute_graus: 0 },
   },
   {
     id: 'usina',
     titulo: 'Usina 99 kWp',
     detalhe: '99,0 kWp · 165 placas',
+    Icone: IconeUsina,
     dados: { nome: 'Usina Fotovoltaica 99 kWp', quantidade_placas: 165, potencia_placa_wp: 600, inversor_kw: 75.0, inclinacao_graus: 12, azimute_graus: 0 },
   },
 ];
@@ -272,6 +282,7 @@ export default function PainelMinhaUsina({ estadoSistema, aoSalvarUsina, aoIrPar
           const selecionado =
             Number(formulario.quantidade_placas) === perfil.dados.quantidade_placas &&
             Number(formulario.potencia_placa_wp) === perfil.dados.potencia_placa_wp;
+          const IconePerfil = perfil.Icone;
           return (
             <button
               key={perfil.id}
@@ -280,7 +291,14 @@ export default function PainelMinhaUsina({ estadoSistema, aoSalvarUsina, aoIrPar
               aria-pressed={selecionado}
               onClick={() => definirFormulario((atual) => ({ ...atual, ...perfil.dados }))}
             >
-              <strong>{perfil.titulo}</strong>
+              <div className="preset-card-top">
+                <strong>{perfil.titulo}</strong>
+                {IconePerfil && (
+                  <span className="preset-icon-chip" aria-hidden="true">
+                    <IconePerfil size={15} />
+                  </span>
+                )}
+              </div>
               <span>{perfil.detalhe}</span>
             </button>
           );
@@ -452,7 +470,9 @@ export default function PainelMinhaUsina({ estadoSistema, aoSalvarUsina, aoIrPar
               }}
             >
               <div className="mode-choice-top">
-                <strong>API de Clima + Manual</strong>
+                <strong style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <IconeClima size={15} color="var(--neural-teal)" /> API de Clima + Manual
+                </strong>
                 <span className="mode-tag">Sem API de inversor</span>
               </div>
               <p>Usa AccuWeather / Estação Terrestre Real no endereço do mapa; você lança os kWh quando quiser comparar.</p>
@@ -466,7 +486,9 @@ export default function PainelMinhaUsina({ estadoSistema, aoSalvarUsina, aoIrPar
               onClick={() => definirFormulario({ ...formulario, modo_conexao_inversor: 'api_inversor' })}
             >
               <div className="mode-choice-top">
-                <strong>API do Inversor</strong>
+                <strong style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <IconeConexao size={15} color="var(--solar-amber)" /> API do Inversor
+                </strong>
                 <span className="mode-tag">Automático</span>
               </div>
               <p>Busca a potência direto do software/API do inversor (SolarNetwork, Fronius, Shelly ou nuvem).</p>
@@ -483,7 +505,9 @@ export default function PainelMinhaUsina({ estadoSistema, aoSalvarUsina, aoIrPar
               }}
             >
               <div className="mode-choice-top">
-                <strong>Webhook Local</strong>
+                <strong style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <IconeWebhook size={15} color="var(--sky-hybrid)" /> Webhook Local
+                </strong>
                 <span className="mode-tag">Home Assistant</span>
               </div>
               <p>Seu medidor Wi-Fi, ESP32 ou automação envia as leituras direto para o Helionta.</p>

@@ -12,10 +12,14 @@ import {
 } from 'recharts';
 import {
   AlertTriangle as IconeAviso,
+  CloudSun as IconeClimaSol,
   Download as IconeDownload,
+  Flame as IconePico,
   MapPin as IconeMapa,
   RefreshCw as IconeAtualizar,
   Sun as IconeSol,
+  Wallet as IconeCarteira,
+  Zap as IconeRaio,
 } from 'lucide-react';
 import { clienteApi } from '../api/clienteApi';
 import { formatarNumero } from '../utilitarios/formatadores';
@@ -99,7 +103,10 @@ export default function PainelPrevisaoOperacional({ estadoSistema, aoAtualizarCo
           {/* 4 INDICADORES DIRETOS E OBJETIVOS */}
           <div className="kpi-grid forecast-kpis">
             <div className="card card-compact">
-              <div className="kpi-label">Energia prevista ({resultadoPrevisao.horas}h)</div>
+              <div className="kpi-label">
+                <span>Energia prevista ({resultadoPrevisao.horas}h)</span>
+                <span className="kpi-icon-badge teal"><IconeRaio size={15} /></span>
+              </div>
               <div className="kpi-value">
                 {formatarNumero(resultadoPrevisao.energia_total_lstm_kwh, 2)} <small>kWh</small>
               </div>
@@ -107,7 +114,10 @@ export default function PainelPrevisaoOperacional({ estadoSistema, aoAtualizarCo
             </div>
 
             <div className="card card-compact">
-              <div className="kpi-label">Economia estimada</div>
+              <div className="kpi-label">
+                <span>Economia estimada</span>
+                <span className="kpi-icon-badge teal"><IconeCarteira size={15} /></span>
+              </div>
               <div className="kpi-value" style={{ color: 'var(--signal-ok)' }}>
                 <small>R$</small> {formatarNumero(resultadoPrevisao.economia_estimada_rs, 2)}
               </div>
@@ -117,13 +127,19 @@ export default function PainelPrevisaoOperacional({ estadoSistema, aoAtualizarCo
             </div>
 
             <div className="card card-compact">
-              <div className="kpi-label">Pico de geração</div>
+              <div className="kpi-label">
+                <span>Pico de geração</span>
+                <span className="kpi-icon-badge amber"><IconePico size={15} /></span>
+              </div>
               <div className="kpi-value">{resultadoPrevisao.horario_pico}</div>
               <div className="kpi-foot">Máxima de {formatarNumero(resultadoPrevisao.pico_lstm_kwh, 2)} kWh/h</div>
             </div>
 
             <div className="card card-compact">
-              <div className="kpi-label">Clima em {cfgAtiva.cidade?.split(',')[0] || 'sua região'}</div>
+              <div className="kpi-label">
+                <span>Clima em {cfgAtiva.cidade?.split(',')[0] || 'sua região'}</span>
+                <span className="kpi-icon-badge sky"><IconeClimaSol size={15} /></span>
+              </div>
               <div className="kpi-value" style={{ fontSize: 24 }}>
                 {formatarNumero(meteo?.temperatura_min_c, 0)}° a {formatarNumero(meteo?.temperatura_max_c, 0)}°C
               </div>

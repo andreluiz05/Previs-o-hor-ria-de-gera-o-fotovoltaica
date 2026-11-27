@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   BarChart as GraficoBarras,
   Bar as Barra,
@@ -21,6 +21,13 @@ import {
   Info as IconeInfo,
   Trash2 as IconeExcluir,
   Save as IconeSalvar,
+  CalendarDays as IconeDias,
+  CalendarRange as IconeSemanas,
+  Calendar as IconeMeses,
+  BarChart3 as IconeAnos,
+  Zap as IconeRaio,
+  CloudSun as IconeClima,
+  Activity as IconeAtividade,
 } from 'lucide-react';
 import { clienteApi } from '../api/clienteApi';
 import { formatarNumero } from '../utilitarios/formatadores';
@@ -74,6 +81,7 @@ export default function PainelConsultaComparacao({ estadoSistema, aoIrParaAba })
   const [erro, definirErro] = useState('');
   const [diario, definirDiario] = useState(null);
   const [carregandoInicial, definirCarregandoInicial] = useState(true);
+  const [agrupamentoPeriodo, definirAgrupamentoPeriodo] = useState('dias'); // 'dias' | 'semanas' | 'meses' | 'anos'
 
   useEffect(() => {
     definirTotalDiaInput(calcularTotalTipico(estadoSistema));
@@ -168,6 +176,56 @@ export default function PainelConsultaComparacao({ estadoSistema, aoIrParaAba })
   const baseTipica = calcularTotalTipico(estadoSistema);
   const kpis = diario?.kpis || {};
   const diag = diario?.diagnostico;
+
+  // Agrupa os registros do histórico por Dias, Semanas, Meses ou Anos
+  const serieAgrupada = useMemo(() => {
+    const lista = diario?.resumo_diario || [];
+    if (!lista.length || agrupamentoPeriodo === 'dias') {
+      return lista.map((d) => ({ ...d, chave: d.data_iso, rotulo: d.data_curta || d.data, permiteExcluir: true }));
+    }
+
+    const grupos = new Map();
+    lista.forEach((d) => {
+      const [ano, mes, dia] = (d.data_iso || '2026-01-01').split('-').map(Number);
+      let chave = d.data_iso;
+      let rotulo = d.data_curta;
+
+      if (agrupamentoPeriodo === 'semanas') {
+        const dt = new Date(ano, mes - 1, dia);
+        const inicioSem = new Date(dt);
+        inicioSem.setDate(dt.getDate() - dt.getDay());
+        const dd = String(inicioSem.getDate()).padStart(2, '0');
+        const mm = String(inicioSem.getMonth() + 1).padStart(2, '0');
+        chave = `${inicioSem.getFullYear()}-W-${mm}-${dd}`;
+        rotulo = `Sem. ${dd}/${mm}`;
+      } else if (agrupamentoPeriodo === 'meses') {
+        const nomesMes = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+        chave = `${ano}-${String(mes).padStart(2, '0')}`;
+        rotulo = `${nomesMes[(mes - 1) % 12]}/${String(ano).slice(-2)}`;
+      } else if (agrupamentoPeriodo === 'anos') {
+        chave = String(ano);
+        rotulo = String(ano);
+      }
+
+      const atual = grupos.get(chave) || {
+        chave,
+        data_iso: chave,
+        data: rotulo,
+        data_curta: rotulo,
+        rotulo,
+        geracao_real_kwh: 0,
+        previsao_kwh: 0,
+        economia_real_rs: 0,
+        permiteExcluir: false,
+      };
+      atual.geracao_real_kwh = Number((atual.geracao_real_kwh + Number(d.geracao_real_kwh || 0)).toFixed(2));
+      atual.previsao_kwh = Number((atual.previsao_kwh + Number(d.previsao_kwh || 0)).toFixed(2));
+      atual.economia_real_rs = Number((atual.economia_real_rs + Number(d.economia_real_rs || 0)).toFixed(2));
+      grupos.set(chave, atual);
+    });
+
+    return Array.from(grupos.values());
+  }, [diario?.resumo_diario, agrupamentoPeriodo]);
 
   return (
     <div className="view-stack">
@@ -343,16 +401,36 @@ export default function PainelConsultaComparacao({ estadoSistema, aoIrParaAba })
 
           <section className="card">
             <div className="card-header" style={{ marginBottom: 14 }}>
-              <h2 className="card-title">Gerado × Esperado ({diario.total_dias} {diario.total_dias === 1 ? 'dia' : 'dias'})</h2>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button type="button" className="btn btn-sm" onClick={exportarCsv}><IconeDownload size={14} /> Baixar CSV</button>
+              <div>
+                <h2 className="card-title">Gerado × Esperado ({diario.total_dias} {diario.total_dias === 1 ? 'dia' : 'dias'})</h2>
+                <p className="card-subtitle">Compare seus lançamentos agrupados por dias, semanas, meses ou anos.</p>
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }} role="group" aria-label="Agrupar comparação">
+                  <button type="button" className={`mini-preset ${agrupamentoPeriodo === 'dias' ? 'is-selected' : ''}`} onClick={() => definirAgrupamentoPeriodo('dias')}>
+                    <IconeDias size={12} style={{ marginRight: 4 }} /> Dias
+                  </button>
+                  <button type="button" className={`mini-preset ${agrupamentoPeriodo === 'semanas' ? 'is-selected' : ''}`} onClick={() => definirAgrupamentoPeriodo('semanas')}>
+                    <IconeSemanas size={12} style={{ marginRight: 4 }} /> Semanas
+                  </button>
+                  <button type="button" className={`mini-preset ${agrupamentoPeriodo === 'meses' ? 'is-selected' : ''}`} onClick={() => definirAgrupamentoPeriodo('meses')}>
+                    <IconeMeses size={12} style={{ marginRight: 4 }} /> Meses
+                  </button>
+                  <button type="button" className={`mini-preset ${agrupamentoPeriodo === 'anos' ? 'is-selected' : ''}`} onClick={() => definirAgrupamentoPeriodo('anos')}>
+                    <IconeAnos size={12} style={{ marginRight: 4 }} /> Anos
+                  </button>
+                </div>
+                <button type="button" className="btn btn-sm" onClick={exportarCsv}><IconeDownload size={14} /> CSV</button>
                 <button type="button" className="btn btn-sm" onClick={limparTudo}><IconeExcluir size={14} /> Limpar</button>
               </div>
             </div>
 
             <div className="kpi-grid beginner-kpis" style={{ marginBottom: 18 }}>
               <div className="card card-compact">
-                <div className="kpi-label">Energia gerada</div>
+                <div className="kpi-label">
+                  <span>Energia gerada</span>
+                  <span className="kpi-icon-badge amber"><IconeRaio size={15} /></span>
+                </div>
                 <div className="kpi-value" style={{ color: 'var(--solar-amber)' }}>
                   {formatarNumero(kpis.energia_real_total_kwh, 1)} <small>kWh</small>
                 </div>
@@ -360,7 +438,10 @@ export default function PainelConsultaComparacao({ estadoSistema, aoIrParaAba })
               </div>
 
               <div className="card card-compact">
-                <div className="kpi-label">Esperado pelo clima</div>
+                <div className="kpi-label">
+                  <span>Esperado pelo clima</span>
+                  <span className="kpi-icon-badge teal"><IconeClima size={15} /></span>
+                </div>
                 <div className="kpi-value" style={{ color: 'var(--neural-teal)' }}>
                   {formatarNumero(kpis.energia_prevista_total_kwh, 1)} <small>kWh</small>
                 </div>
@@ -368,7 +449,10 @@ export default function PainelConsultaComparacao({ estadoSistema, aoIrParaAba })
               </div>
 
               <div className="card card-compact">
-                <div className="kpi-label">Diferença no período</div>
+                <div className="kpi-label">
+                  <span>Diferença no período</span>
+                  <span className="kpi-icon-badge sky"><IconeAtividade size={15} /></span>
+                </div>
                 <div
                   className="kpi-value"
                   style={{
@@ -384,9 +468,9 @@ export default function PainelConsultaComparacao({ estadoSistema, aoIrParaAba })
             <div className="split-equal">
               <div style={{ width: '100%', height: 245 }}>
                 <ContainerResponsivo>
-                  <GraficoBarras data={diario.resumo_diario} margin={{ top: 6, right: 10, left: -12, bottom: 4 }}>
+                  <GraficoBarras data={serieAgrupada} margin={{ top: 6, right: 10, left: -12, bottom: 4 }}>
                     <GradeCartesiana strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
-                    <EixoX dataKey="data_curta" stroke="var(--text-muted)" tick={{ fontSize: 11 }} />
+                    <EixoX dataKey="rotulo" stroke="var(--text-muted)" tick={{ fontSize: 11 }} />
                     <EixoY stroke="var(--text-muted)" tick={{ fontSize: 11 }} />
                     <DicaFlutuante contentStyle={{ backgroundColor: 'var(--tooltip-bg)', borderColor: 'var(--border-subtle)', borderRadius: 10, fontSize: 12 }} />
                     <Legenda />
@@ -400,7 +484,7 @@ export default function PainelConsultaComparacao({ estadoSistema, aoIrParaAba })
                 <table className="data-table mono">
                   <thead>
                     <tr>
-                      <th>Data</th>
+                      <th>Período</th>
                       <th>Gerado</th>
                       <th>Esperado</th>
                       <th>Valor</th>
@@ -408,14 +492,16 @@ export default function PainelConsultaComparacao({ estadoSistema, aoIrParaAba })
                     </tr>
                   </thead>
                   <tbody>
-                    {[...diario.resumo_diario].reverse().map((d) => (
-                      <tr key={d.data_iso}>
+                    {[...serieAgrupada].reverse().map((d) => (
+                      <tr key={d.chave}>
                         <td>{d.data}</td>
                         <td>{formatarNumero(d.geracao_real_kwh, 1)} kWh</td>
                         <td className="winner-cell">{formatarNumero(d.previsao_kwh, 1)} kWh</td>
                         <td>R$ {formatarNumero(d.economia_real_rs, 2)}</td>
                         <td>
-                          <button type="button" className="mini-preset" onClick={() => excluirDia(d.data_iso)}>Excluir</button>
+                          {d.permiteExcluir && (
+                            <button type="button" className="mini-preset" onClick={() => excluirDia(d.data_iso)}>Excluir</button>
+                          )}
                         </td>
                       </tr>
                     ))}

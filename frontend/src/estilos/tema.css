@@ -402,8 +402,8 @@ button.journey-step:hover { border-color: var(--neural-teal); }
   .forecast-network > summary small { font-size: 9px; }
 }
 /* Helionta: marca do produto; Tecalli Tecnologia: assinatura da desenvolvedora. */
-.sidebar-brand { padding: 0 8px; min-height: 62px; }
-.helionta-logo { display: block; width: 190px; height: auto; filter: brightness(0) invert(1); }
+.sidebar-brand { padding: 8px 12px; min-height: 60px; background: #ffffff; border-radius: 12px; border: 1px solid rgba(255, 255, 255, .24); box-shadow: 0 4px 14px rgba(0, 0, 0, .18); justify-content: center; }
+.helionta-logo { display: block; width: 178px; height: auto; filter: none; }
 .sidebar-signature { gap: 6px; }
 .sidebar-signature img { display: block; width: 128px; height: auto; padding: 0; background: transparent; border-radius: 0; filter: brightness(0) invert(1); }
 .workspace-label small { max-width: 155px; font-size: 9px; }
@@ -624,12 +624,21 @@ button.journey-step:hover { border-color: var(--neural-teal); }
 .section-heading-clean h2 { margin: 0; font-family: var(--font-display); font-size: 16px; font-weight: 600; }
 .section-heading-clean span { font-size: 12px; color: var(--text-secondary); }
 
-.integrations-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-.integration-card { display: flex; flex-direction: column; justify-content: space-between; gap: 12px; padding: 18px; border-radius: 14px; background: var(--bg-surface); border: 1px solid var(--border-subtle); transition: border-color .15s; }
-.integration-card:hover { border-color: var(--border-input); }
-.integration-card.is-primary-connector { border-color: var(--neural-teal); background: linear-gradient(180deg, var(--neural-teal-soft) 0%, var(--bg-surface) 65%); }
-.integration-card-head { display: flex; align-items: flex-start; gap: 12px; }
-.integration-icon { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; flex-shrink: 0; background: var(--neural-teal-soft); color: var(--neural-teal); }
+.integrations-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.integration-card { display: flex; flex-direction: column; justify-content: space-between; gap: 0; padding: 0; overflow: hidden; border-radius: 15px; background: var(--bg-surface); border: 1px solid var(--border-subtle); transition: border-color .18s, transform .18s, box-shadow .18s; }
+.integration-card:hover { border-color: var(--border-input); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(15, 23, 42, .07); }
+.integration-card.is-primary-connector { border-color: var(--neural-teal); box-shadow: 0 0 0 1px var(--neural-teal); }
+
+.integration-photo-banner { position: relative; width: 100%; height: 122px; overflow: hidden; background: var(--bg-elevated); border-bottom: 1px solid var(--border-subtle); }
+.integration-photo-banner img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform .35s ease; }
+.integration-card:hover .integration-photo-banner img { transform: scale(1.03); }
+.integration-photo-overlay { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(15, 23, 42, .08) 0%, rgba(15, 23, 42, .52) 100%); pointer-events: none; }
+.integration-photo-badges { position: absolute; top: 10px; right: 10px; display: flex; gap: 6px; flex-wrap: wrap; z-index: 2; }
+.integration-provider-chip { position: absolute; bottom: 9px; left: 12px; z-index: 2; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: rgba(15, 23, 42, .72); backdrop-filter: blur(6px); color: #fff; font-size: 10.5px; font-weight: 600; letter-spacing: .2px; }
+
+.integration-body { display: flex; flex-direction: column; justify-content: space-between; gap: 12px; padding: 15px 18px 16px; flex: 1; }
+.integration-card-head { display: flex; align-items: flex-start; gap: 11px; }
+.integration-icon { width: 36px; height: 36px; border-radius: 9px; display: grid; place-items: center; flex-shrink: 0; background: var(--neural-teal-soft); color: var(--neural-teal); }
 .integration-icon.amber { background: var(--solar-amber-soft); color: var(--solar-amber); }
 .integration-meta { flex: 1; min-width: 0; }
 .integration-title-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -654,6 +663,45 @@ button.journey-step:hover { border-color: var(--neural-teal); }
 .weather-live-pills { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; margin-top: 4px; padding-top: 8px; border-top: 1px solid var(--border-subtle); font-size: 12px; color: var(--text-secondary); }
 .weather-live-pills > span { display: inline-flex; align-items: center; gap: 4px; }
 .weather-live-pills strong { color: var(--text-primary); }
+
+/* Diagrama Sinóptico (Resumo em Desenho da Instalação Solar) + Barra de Filtros */
+.synoptic-wrapper { width: 100%; overflow-x: auto; padding: 4px 0; }
+.synoptic-svg { display: block; width: 100%; min-width: 780px; height: auto; }
+.synoptic-box { fill: var(--bg-subtle); stroke: var(--border-subtle); stroke-width: 1.5; transition: stroke .18s, fill .18s; }
+.synoptic-node:hover .synoptic-box { stroke: var(--neural-teal); fill: var(--bg-elevated); }
+.synoptic-tag { font-family: var(--font-mono); font-size: 9.5px; font-weight: 700; letter-spacing: .8px; fill: var(--text-muted); }
+.synoptic-value-sm { font-family: var(--font-display); font-size: 16.5px; font-weight: 700; fill: var(--text-primary); }
+.synoptic-title { font-family: var(--font-display); font-size: 14px; font-weight: 600; fill: var(--text-primary); }
+.synoptic-detail { font-family: var(--font-body); font-size: 11.5px; fill: var(--text-secondary); }
+.synoptic-pill { fill: var(--bg-surface); stroke: var(--border-subtle); stroke-width: 1; }
+.synoptic-pill-text { font-family: var(--font-mono); font-size: 11px; font-weight: 600; fill: var(--text-primary); }
+
+.synoptic-wire { fill: none; stroke: var(--border-input); stroke-width: 3; stroke-dasharray: 7 6; }
+.synoptic-wire.solar-ray.is-flowing { stroke: #f59e0b; animation: fluxo-energia 1.3s linear infinite; }
+.synoptic-wire.dc-wire.is-flowing { stroke: #0284c7; animation: fluxo-energia 1.1s linear infinite; }
+.synoptic-wire.ac-wire.is-flowing { stroke: #0f766e; animation: fluxo-energia 1.1s linear infinite; }
+.synoptic-wire-label { font-family: var(--font-mono); font-size: 10.5px; font-weight: 600; fill: var(--text-primary); }
+.synoptic-wire-sub { font-family: var(--font-body); font-size: 10px; fill: var(--text-muted); }
+
+@keyframes fluxo-energia {
+  from { stroke-dashoffset: 26; }
+  to { stroke-dashoffset: 0; }
+}
+
+.overview-filters-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 18px; padding: 14px 18px; }
+.filter-group-inline { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.filter-title { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; color: var(--text-secondary); margin-right: 2px; }
+.mini-preset.is-selected { border-color: var(--neural-teal); background: var(--neural-teal-soft); color: var(--neural-teal); font-weight: 600; }
+.overview-specs-mini { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 14px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-subtle); font-size: 11.5px; color: var(--text-secondary); }
+
+/* Ícones de destaque em cabeçalhos, KPIs e cartões de porte */
+.page-title-icon { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; flex-shrink: 0; background: var(--neural-teal-soft); color: var(--neural-teal); border: 1px solid var(--border-subtle); }
+.kpi-icon-badge { width: 28px; height: 28px; border-radius: 8px; display: inline-grid; place-items: center; flex-shrink: 0; }
+.kpi-icon-badge.teal { background: var(--neural-teal-soft); color: var(--neural-teal); }
+.kpi-icon-badge.amber { background: var(--solar-amber-soft); color: var(--solar-amber); }
+.kpi-icon-badge.sky { background: var(--sky-hybrid-soft); color: var(--sky-hybrid); }
+.preset-card-top { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 8px; }
+.preset-icon-chip { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; background: var(--bg-surface); color: var(--neural-teal); border: 1px solid var(--border-subtle); }
 
 .integration-ping { display: flex; align-items: center; justify-content: space-between; padding: 7px 11px; border-radius: 8px; font-size: 11.5px; }
 .integration-ping.ok { background: var(--signal-ok-soft); color: var(--signal-ok); }

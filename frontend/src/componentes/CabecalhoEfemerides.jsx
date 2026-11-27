@@ -2,12 +2,18 @@ import React from 'react';
 import { Sun, Moon } from 'lucide-react';
 
 export default function CabecalhoEfemerides({ temaAtual, aoAlternarTema, aba }) {
+  const IconeAba = aba?.Icone || Sun;
   return (
     <header className="page-header compact-header">
       <div className="page-heading-row">
-        <div>
-          <h1>{aba.titulo}<span className="heading-dot">.</span></h1>
-          <p className="page-description">{aba.descricao}</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <span className="page-title-icon" aria-hidden="true">
+            <IconeAba size={22} strokeWidth={1.9} />
+          </span>
+          <div>
+            <h1>{aba.titulo}<span className="heading-dot">.</span></h1>
+            <p className="page-description">{aba.descricao}</p>
+          </div>
         </div>
 
         <div className="page-actions">

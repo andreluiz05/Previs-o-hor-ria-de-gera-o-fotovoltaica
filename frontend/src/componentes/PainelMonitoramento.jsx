@@ -19,6 +19,9 @@ import {
   AlertTriangle,
   ShieldAlert,
   FlaskConical,
+  TrendingUp,
+  Clock3,
+  Thermometer,
   Play,
   Pause,
   RotateCcw,
@@ -211,7 +214,10 @@ function CentralAoVivo({ estadoSistema }) {
       {dados && (
         <div className="kpi-grid forecast-kpis">
           <div className="card card-compact">
-            <div className="kpi-label">Potência agora</div>
+            <div className="kpi-label">
+              <span>Potência agora</span>
+              <span className="kpi-icon-badge amber"><Zap size={15} /></span>
+            </div>
             <div className="kpi-value">
               {formatarNumero(dados.potencia_atual_kw, 2)} <small>kW</small>
             </div>
@@ -225,7 +231,10 @@ function CentralAoVivo({ estadoSistema }) {
           </div>
 
           <div className="card card-compact">
-            <div className="kpi-label">Gerado hoje até agora</div>
+            <div className="kpi-label">
+              <span>Gerado hoje até agora</span>
+              <span className="kpi-icon-badge teal"><TrendingUp size={15} /></span>
+            </div>
             <div className="kpi-value" style={{ color: 'var(--signal-ok)' }}>
               {formatarNumero(dados.energia_hoje_ate_agora_kwh, 2)} <small>kWh</small>
             </div>
@@ -233,7 +242,10 @@ function CentralAoVivo({ estadoSistema }) {
           </div>
 
           <div className="card card-compact">
-            <div className="kpi-label">Restante previsto hoje</div>
+            <div className="kpi-label">
+              <span>Restante previsto hoje</span>
+              <span className="kpi-icon-badge sky"><Clock3 size={15} /></span>
+            </div>
             <div className="kpi-value" style={{ color: 'var(--sky-hybrid)' }}>
               +{formatarNumero(dados.energia_restante_hoje_kwh, 2)} <small>kWh</small>
             </div>
@@ -241,12 +253,15 @@ function CentralAoVivo({ estadoSistema }) {
           </div>
 
           <div className="card card-compact">
-            <div className="kpi-label">Sol nas placas agora</div>
+            <div className="kpi-label">
+              <span>Sol nas placas agora</span>
+              <span className="kpi-icon-badge amber"><Sun size={15} /></span>
+            </div>
             <div className="kpi-value" style={{ fontSize: 24 }}>
               {formatarNumero(clima.poa_wm2, 0)} <small>W/m²</small>
             </div>
-            <div className="kpi-foot">
-              Placa {formatarNumero(clima.temperatura_placa_c, 0)}°C · Nuvens {formatarNumero(clima.nuvens_pct, 0)}%
+            <div className="kpi-foot" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <Thermometer size={12} /> Placa {formatarNumero(clima.temperatura_placa_c, 0)}°C · Nuvens {formatarNumero(clima.nuvens_pct, 0)}%
             </div>
           </div>
         </div>

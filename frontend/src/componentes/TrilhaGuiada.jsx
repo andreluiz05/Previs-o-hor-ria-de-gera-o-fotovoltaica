@@ -1,11 +1,11 @@
 import React from 'react';
-import { ArrowLeft, ArrowRight, Check } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Sun, Zap, CloudSun, Activity } from 'lucide-react';
 
 export const PASSOS_PRINCIPAIS = [
-  { numero: 1, id: 'usina', curto: 'Usina e local' },
-  { numero: 2, id: 'monitoramento', curto: 'Tempo real' },
-  { numero: 3, id: 'operacional', curto: 'Previsão 24h' },
-  { numero: 4, id: 'consulta', curto: 'Histórico e saúde' },
+  { numero: 1, id: 'usina', curto: 'Usina e local', Icone: Sun },
+  { numero: 2, id: 'monitoramento', curto: 'Tempo real', Icone: Zap },
+  { numero: 3, id: 'operacional', curto: 'Previsão 24h', Icone: CloudSun },
+  { numero: 4, id: 'consulta', curto: 'Histórico e saúde', Icone: Activity },
 ];
 
 export default function TrilhaGuiada({ abaAtiva, aoNavegar }) {
@@ -29,6 +29,7 @@ export default function TrilhaGuiada({ abaAtiva, aoNavegar }) {
               <span className="stepper-badge">
                 {concluido ? <Check size={13} strokeWidth={2.6} aria-hidden="true" /> : passo.numero}
               </span>
+              {passo.Icone && <passo.Icone size={15} strokeWidth={1.9} style={{ opacity: 0.85 }} aria-hidden="true" />}
               <strong>{passo.curto}</strong>
             </button>
           );

@@ -1,10 +1,11 @@
 import React, { lazy, Suspense, useCallback, useEffect, useState } from 'react';
-import { Sun, Zap, CloudSun, Activity, PlugZap, ChartNoAxesCombined, Compass, Settings2, AlertTriangle, ArrowUpRight, Menu, X, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Sun, Zap, CloudSun, Activity, PlugZap, ChartNoAxesCombined, Compass, Settings2, AlertTriangle, ArrowUpRight, Menu, X, ChevronRight } from 'lucide-react';
 import { clienteApi } from './api/clienteApi';
 import CabecalhoEfemerides from './componentes/CabecalhoEfemerides';
 import TrilhaGuiada from './componentes/TrilhaGuiada';
 import { formatarNumero } from './utilitarios/formatadores';
 
+const PainelResumoInstalacao = lazy(() => import('./componentes/PainelResumoInstalacao'));
 const PainelMinhaUsina = lazy(() => import('./componentes/PainelMinhaUsina'));
 const PainelMonitoramento = lazy(() => import('./componentes/PainelMonitoramento'));
 const PainelPrevisaoOperacional = lazy(() => import('./componentes/PainelPrevisaoOperacional'));
@@ -15,6 +16,7 @@ const PainelLaboratorioFisico = lazy(() => import('./componentes/PainelLaborator
 const PainelTreinamentoDados = lazy(() => import('./componentes/PainelTreinamentoDados'));
 
 const ABAS = [
+  { id: 'resumo', titulo: 'Resumo da instalação', menu: 'Visão geral (Desenho)', descricao: 'Desenho esquemático da usina solar, indicadores, estimativas mensais e filtros interativos.', Icone: LayoutDashboard, grupo: 'Sua operação' },
   { id: 'usina', passo: 1, titulo: 'Usina e local', menu: '1. Usina e local', descricao: 'Escolha a localização no mapa, as placas, o inversor e a tarifa.', Icone: Sun, grupo: 'Sua operação' },
   { id: 'monitoramento', passo: 2, titulo: 'Energia em tempo real', menu: '2. Tempo real', descricao: 'Potência instantânea agora, acumulado do dia e leitura ao vivo do inversor.', Icone: Zap, grupo: 'Sua operação' },
   { id: 'operacional', passo: 3, titulo: 'Previsão 24h', menu: '3. Previsão 24h', descricao: 'Energia e economia esperadas nas próximas horas com o clima real.', Icone: CloudSun, grupo: 'Sua operação' },
@@ -28,11 +30,7 @@ const ABAS = [
 function abaDaUrl() {
   const id = window.location.hash.slice(1);
   if (ABAS.some((aba) => aba.id === id)) return id;
-  try {
-    return localStorage.getItem('helionta-passo1-salvo') === 'sim' ? 'monitoramento' : 'usina';
-  } catch {
-    return 'usina';
-  }
+  return 'resumo';
 }
 
 function temaSalvo() {
@@ -218,6 +216,7 @@ export default function AplicacaoSolarV3() {
             )}
             {estadoSistema && (
               <Suspense fallback={<div className="card chart-loading" role="status">Carregando tela…</div>}>
+                {abaAtiva === 'resumo' && <PainelResumoInstalacao estadoSistema={estadoSistema} aoIrParaAba={navegar} />}
                 {abaAtiva === 'usina' && <PainelMinhaUsina estadoSistema={estadoSistema} aoSalvarUsina={carregarEstadoSistema} aoIrParaAba={navegar} />}
                 {abaAtiva === 'monitoramento' && <PainelMonitoramento estadoSistema={estadoSistema} aoIrParaAba={navegar} />}
                 {abaAtiva === 'operacional' && <PainelPrevisaoOperacional estadoSistema={estadoSistema} aoAtualizarConfig={carregarEstadoSistema} aoIrParaAba={navegar} />}

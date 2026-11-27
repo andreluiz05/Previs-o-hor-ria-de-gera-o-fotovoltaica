@@ -33,6 +33,38 @@ function iconePorCategoria(cat) {
   return PlugZap;
 }
 
+function obterVisualDaApi(api) {
+  const id = (api.id || '').toLowerCase();
+  const cat = (api.categoria || '').toLowerCase();
+  const url = (api.url || '').toLowerCase();
+
+  if (id === 'clima_principal' || url.includes('accuweather') || url.includes('wttr.in')) {
+    return { foto: '/apis/api-clima.jpg', selo: 'AccuWeather · Estação Real' };
+  }
+  if (id === 'open_meteo_forecast') {
+    return { foto: '/apis/api-irradiacao.jpg', selo: 'Satélite & Piranômetro Solar' };
+  }
+  if (cat === 'geolocalizacao' || id.includes('geocoding')) {
+    return { foto: '/apis/api-geocoding.jpg', selo: 'Mapas & Geocodificação' };
+  }
+  if (cat === 'historico' || id.includes('archive')) {
+    return { foto: '/apis/api-historico.jpg', selo: 'Série Histórica Solar' };
+  }
+  if (cat === 'webhook' || cat === 'medidor' || id.includes('webhook')) {
+    return { foto: '/apis/api-webhook.jpg', selo: 'Helionta Local · Webhook' };
+  }
+  if (id === 'conector_inversor_usina') {
+    return { foto: '/apis/api-inversor-usina.jpg', selo: 'Hardware · Inversor Principal' };
+  }
+  if (url.includes('solarnetwork')) {
+    return { foto: '/apis/api-inversor.jpg', selo: 'SolarNetwork · Telemetria' };
+  }
+  if (cat === 'clima') {
+    return { foto: '/apis/api-clima.jpg', selo: 'Serviço Meteorológico' };
+  }
+  return { foto: '/apis/api-inversor.jpg', selo: 'Conector de Inversor HTTP' };
+}
+
 export default function PainelCentralApis({ estadoSistema, aoAtualizarConfig, aoIrParaAba }) {
   const [central, definirCentral] = useState(null);
   const [carregando, definirCarregando] = useState(true);
@@ -283,69 +315,80 @@ export default function PainelCentralApis({ estadoSistema, aoAtualizarConfig, ao
           {(central?.apis_personalizadas || []).map((api) => {
             const emUsoNaUsina = modoAtual === 'api_inversor' && urlAtivaUsina === api.url;
             const ehApiDeTeste = (api.url || '').toLowerCase().includes('solarnetwork.net');
+            const visual = obterVisualDaApi(api);
             return (
               <article key={api.id} className={`integration-card ${emUsoNaUsina ? 'is-primary-connector' : ''}`}>
-                <div className="integration-card-head">
-                  <span className="integration-icon amber">
-                    <PlugZap size={18} />
-                  </span>
-                  <div className="integration-meta">
-                    <div className="integration-title-row">
-                      <strong>{api.nome}</strong>
-                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                        {ehApiDeTeste && (
-                          <span className="integration-dot-badge warn">Só teste · Não é dado real</span>
-                        )}
-                        <span className={`integration-dot-badge ${api.ativa ? 'on' : 'off'}`}>
-                          {emUsoNaUsina ? 'Em uso na usina' : api.ativa ? 'Ativa' : 'Pausada'}
-                        </span>
-                      </div>
-                    </div>
-                    <span className="integration-host mono">
-                      {extrairDominioCurto(api.url)} · {api.unidade}
-                      {ehApiDeTeste ? ' · Planta pública externa de demonstração' : ''}
+                <div className="integration-photo-banner">
+                  <img src={visual.foto} alt={api.nome} loading="lazy" />
+                  <div className="integration-photo-overlay" />
+                  <div className="integration-photo-badges">
+                    {ehApiDeTeste && (
+                      <span className="integration-dot-badge warn">Só teste · Não é dado real</span>
+                    )}
+                    <span className={`integration-dot-badge ${api.ativa ? 'on' : 'off'}`}>
+                      {emUsoNaUsina ? 'Em uso na usina' : api.ativa ? 'Ativa' : 'Pausada'}
                     </span>
                   </div>
+                  <span className="integration-provider-chip">
+                    <PlugZap size={12} /> {visual.selo}
+                  </span>
                 </div>
 
-                {api.ultimo_teste_em && (
-                  <div className={`integration-ping ${api.ultimo_status === 'online' ? 'ok' : 'err'}`}>
-                    <span>
-                      {api.ultimo_status === 'online'
-                        ? `${ehApiDeTeste ? 'Teste HTTP OK' : 'Online'} · ${api.ultima_latencia_ms} ms`
-                        : 'Sem resposta'}
+                <div className="integration-body">
+                  <div className="integration-card-head">
+                    <span className="integration-icon amber">
+                      <PlugZap size={17} />
                     </span>
-                    {api.ultima_potencia_kw !== null && api.ultima_potencia_kw !== undefined && (
-                      <strong>
-                        {formatarNumero(api.ultima_potencia_kw, 2)} kW{ehApiDeTeste ? ' (teste)' : ''}
-                      </strong>
-                    )}
+                    <div className="integration-meta">
+                      <div className="integration-title-row">
+                        <strong>{api.nome}</strong>
+                      </div>
+                      <span className="integration-host mono">
+                        {extrairDominioCurto(api.url)} · {api.unidade}
+                        {ehApiDeTeste ? ' · Planta pública externa de demonstração' : ''}
+                      </span>
+                    </div>
                   </div>
-                )}
 
-                <div className="integration-card-foot">
-                  <button
-                    type="button"
-                    className="btn btn-sm"
-                    disabled={testandoId === api.id}
-                    onClick={() => testarPersonalizada(api.id)}
-                  >
-                    <RefreshCw size={13} /> {testandoId === api.id ? 'Testando…' : 'Testar'}
-                  </button>
-
-                  {api.categoria === 'inversor' && !emUsoNaUsina && (
-                    <button type="button" className="btn btn-sm btn-primary" onClick={() => usarNoInversor(api.id)}>
-                      <Zap size={13} /> Usar na usina
-                    </button>
+                  {api.ultimo_teste_em && (
+                    <div className={`integration-ping ${api.ultimo_status === 'online' ? 'ok' : 'err'}`}>
+                      <span>
+                        {api.ultimo_status === 'online'
+                          ? `${ehApiDeTeste ? 'Teste HTTP OK' : 'Online'} · ${api.ultima_latencia_ms} ms`
+                          : 'Sem resposta'}
+                      </span>
+                      {api.ultima_potencia_kw !== null && api.ultima_potencia_kw !== undefined && (
+                        <strong>
+                          {formatarNumero(api.ultima_potencia_kw, 2)} kW{ehApiDeTeste ? ' (teste)' : ''}
+                        </strong>
+                      )}
+                    </div>
                   )}
 
-                  <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
-                    <button type="button" className="mini-preset" onClick={() => alternarAtiva(api)}>
-                      {api.ativa ? 'Pausar' : 'Ativar'}
+                  <div className="integration-card-foot">
+                    <button
+                      type="button"
+                      className="btn btn-sm"
+                      disabled={testandoId === api.id}
+                      onClick={() => testarPersonalizada(api.id)}
+                    >
+                      <RefreshCw size={13} /> {testandoId === api.id ? 'Testando…' : 'Testar'}
                     </button>
-                    <button type="button" className="mini-preset" onClick={() => excluirApi(api.id)} aria-label="Remover API" title="Remover">
-                      <Trash2 size={12} />
-                    </button>
+
+                    {api.categoria === 'inversor' && !emUsoNaUsina && (
+                      <button type="button" className="btn btn-sm btn-primary" onClick={() => usarNoInversor(api.id)}>
+                        <Zap size={13} /> Usar na usina
+                      </button>
+                    )}
+
+                    <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+                      <button type="button" className="mini-preset" onClick={() => alternarAtiva(api)}>
+                        {api.ativa ? 'Pausar' : 'Ativar'}
+                      </button>
+                      <button type="button" className="mini-preset" onClick={() => excluirApi(api.id)} aria-label="Remover API" title="Remover">
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </article>
@@ -374,48 +417,61 @@ export default function PainelCentralApis({ estadoSistema, aoAtualizarConfig, ao
           {(central?.apis_nativas || []).map((api) => {
             const Icone = iconePorCategoria(api.categoria);
             const teste = resultadosNativas[api.id];
+            const visual = obterVisualDaApi(api);
             return (
               <article key={api.id} className="integration-card">
-                <div className="integration-card-head">
-                  <span className="integration-icon">
-                    <Icone size={18} />
-                  </span>
-                  <div className="integration-meta">
-                    <div className="integration-title-row">
-                      <strong>{api.nome}</strong>
-                      <span className={`integration-dot-badge ${api.ativa ? 'on' : 'off'}`}>
-                        {api.ativa ? 'Ativa' : 'Inativa'}
-                      </span>
-                    </div>
-                    <p className="integration-desc">
-                      {api.papel}
-                      {api.categoria === 'clima' && estadoSistema?.config?.cidade
-                        ? ` · Local atual: ${estadoSistema.config.cidade}`
-                        : ''}
-                    </p>
+                <div className="integration-photo-banner">
+                  <img src={visual.foto} alt={api.nome} loading="lazy" />
+                  <div className="integration-photo-overlay" />
+                  <div className="integration-photo-badges">
+                    <span className={`integration-dot-badge ${api.ativa ? 'on' : 'off'}`}>
+                      {api.ativa ? 'Ativa' : 'Inativa'}
+                    </span>
                   </div>
+                  <span className="integration-provider-chip">
+                    <Icone size={12} /> {visual.selo}
+                  </span>
                 </div>
 
-                {teste && (
-                  <div className={`integration-ping ${teste.ok ? 'ok' : 'err'}`}>
-                    <span>{teste.ok ? `Respondendo · ${teste.latencia_ms} ms` : 'Indisponível'}</span>
-                    {teste.potencia_kw !== null && teste.potencia_kw !== undefined && (
-                      <strong>{formatarNumero(teste.potencia_kw, 2)} kW</strong>
-                    )}
+                <div className="integration-body">
+                  <div className="integration-card-head">
+                    <span className="integration-icon">
+                      <Icone size={17} />
+                    </span>
+                    <div className="integration-meta">
+                      <div className="integration-title-row">
+                        <strong>{api.nome}</strong>
+                      </div>
+                      <p className="integration-desc">
+                        {api.papel}
+                        {api.categoria === 'clima' && estadoSistema?.config?.cidade
+                          ? ` · Local atual: ${estadoSistema.config.cidade}`
+                          : ''}
+                      </p>
+                    </div>
                   </div>
-                )}
 
-                <div className="integration-card-foot">
-                  <span className="integration-host mono">{extrairDominioCurto(api.url)}</span>
-                  <button
-                    type="button"
-                    className="mini-preset"
-                    style={{ marginLeft: 'auto', padding: '5px 10px', fontSize: 11 }}
-                    disabled={testandoId === api.id}
-                    onClick={() => testarNativa(api)}
-                  >
-                    {testandoId === api.id ? 'Verificando…' : 'Verificar sinal'}
-                  </button>
+                  {teste && (
+                    <div className={`integration-ping ${teste.ok ? 'ok' : 'err'}`}>
+                      <span>{teste.ok ? `Respondendo · ${teste.latencia_ms} ms` : 'Indisponível'}</span>
+                      {teste.potencia_kw !== null && teste.potencia_kw !== undefined && (
+                        <strong>{formatarNumero(teste.potencia_kw, 2)} kW</strong>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="integration-card-foot">
+                    <span className="integration-host mono">{extrairDominioCurto(api.url)}</span>
+                    <button
+                      type="button"
+                      className="mini-preset"
+                      style={{ marginLeft: 'auto', padding: '5px 10px', fontSize: 11 }}
+                      disabled={testandoId === api.id}
+                      onClick={() => testarNativa(api)}
+                    >
+                      {testandoId === api.id ? 'Verificando…' : 'Verificar sinal'}
+                    </button>
+                  </div>
                 </div>
               </article>
             );
