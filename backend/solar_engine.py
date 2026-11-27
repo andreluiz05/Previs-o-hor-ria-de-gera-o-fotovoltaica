@@ -79,7 +79,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "albedo": 0.2,
     "tarifa_energia_rs": 0.92,   # Tarifa média em R$/kWh para cálculo de retorno financeiro
     "modo_conexao_inversor": "api_inversor",  # 'api_inversor' | 'webhook_push' | 'manual'
-    "provedor_inversor": "SolarNetwork · API Real Online",
+    "provedor_inversor": "SolarNetwork (Apenas Teste Técnico)",
     "url_api_inversor": "https://data.solarnetwork.net/solarquery/api/v1/pub/datum/mostRecent?nodeId=1000&sourceId=%2F0145%2FS1%2FG1%2FINV%2F2",
     "token_api_inversor": "",
     "campo_potencia_json": "data.results.0.watts",

@@ -34,11 +34,11 @@ URL_SOLARNETWORK_EXEMPLO = (
 MODELOS_CONECTOR_INVERSOR: list[dict[str, str]] = [
     {
         "id": "solarnetwork_teste",
-        "nome": "SolarNetwork · API Real Online (pronta para testar)",
+        "nome": "SolarNetwork · API Pública (SÓ TESTE — não mostra sua usina real)",
         "url": URL_SOLARNETWORK_EXEMPLO,
         "campo_potencia": "data.results.0.watts",
         "unidade": "W",
-        "descricao": "API pública real já integrada no código (nó 1000 · inversor 2).",
+        "descricao": "Exclusivo para teste técnico de conexão HTTP/JSON. Lê uma planta externa de demonstração, não a realidade da sua usina.",
     },
     {
         "id": "fronius_local",
@@ -218,7 +218,7 @@ class CentralApisProjeto:
                 );
                 """
             )
-            # Pré-cadastra a API real de inversor da SolarNetwork caso o banco esteja vazio
+            # Pré-cadastra a API de demonstração SolarNetwork caso o banco esteja vazio (apenas para teste técnico)
             qtd = db.execute("SELECT COUNT(*) FROM apis_personalizadas").fetchone()[0]
             if qtd == 0:
                 db.execute(
@@ -229,7 +229,7 @@ class CentralApisProjeto:
                     """,
                     (
                         "solarnetwork-demo-1000",
-                        "Inversor SolarNetwork · Nó 1000 (API Real de Teste)",
+                        "SolarNetwork · Nó 1000 (SÓ TESTE — Não reflete sua usina)",
                         "inversor",
                         URL_SOLARNETWORK_EXEMPLO,
                         "",
@@ -238,6 +238,11 @@ class CentralApisProjeto:
                         1,
                         datetime.now(TZ_BR).isoformat(timespec="seconds"),
                     ),
+                )
+            else:
+                db.execute(
+                    "UPDATE apis_personalizadas SET nome = ? WHERE id = 'solarnetwork-demo-1000'",
+                    ("SolarNetwork · Nó 1000 (SÓ TESTE — Não reflete sua usina)",),
                 )
 
     def _conectar(self):

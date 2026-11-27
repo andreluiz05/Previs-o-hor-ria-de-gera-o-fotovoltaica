@@ -100,7 +100,10 @@ function CentralAoVivo({ estadoSistema }) {
     try {
       const resp = await clienteApi.sincronizarApiInversorTempoReal();
       definirDados(resp.estado_tempo_real);
-      definirAvisoSync(`API sincronizada (${resp.leitura_api.latencia_ms} ms): ${formatarNumero(resp.leitura_api.potencia_kw, 3)} kW recebidos de ${resp.leitura_api.origem}.`);
+      const ehTeste = (resp.leitura_api.origem || '').toLowerCase().includes('solarnetwork') || (estadoSistema?.config?.url_api_inversor || '').toLowerCase().includes('solarnetwork.net');
+      definirAvisoSync(
+        `API sincronizada (${resp.leitura_api.latencia_ms} ms): ${formatarNumero(resp.leitura_api.potencia_kw, 3)} kW recebidos de ${resp.leitura_api.origem}${ehTeste ? ' — ATENÇÃO: dado público apenas para teste, não representa a realidade da sua usina.' : '.'}`
+      );
     } catch (e) {
       definirErro(e.message || 'Falha ao consultar API do inversor.');
     } finally {
@@ -120,6 +123,10 @@ function CentralAoVivo({ estadoSistema }) {
   const diag = dados?.diagnostico_agora;
   const conectado = dados?.inversor_conectado_ao_vivo;
   const clima = dados?.clima_agora || {};
+  const usandoApiDeTeste =
+    (estadoSistema?.config?.modo_conexao_inversor === 'api_inversor' &&
+      (estadoSistema?.config?.url_api_inversor || '').toLowerCase().includes('solarnetwork.net')) ||
+    (dados?.origem_ultima_leitura || '').toLowerCase().includes('solarnetwork');
 
   return (
     <div className="view-stack">
@@ -130,12 +137,26 @@ function CentralAoVivo({ estadoSistema }) {
         </div>
       )}
 
+      {usandoApiDeTeste && (
+        <div className="notice-banner amber" role="note">
+          <AlertTriangle size={18} />
+          <div>
+            <strong>API de inversor apenas para teste (não reflete a realidade da sua usina):</strong>{' '}
+            o conector <strong>SolarNetwork</strong> está ativo somente para validar a integração HTTP no código e lê uma planta externa de demonstração. Para acompanhar valores condizentes com o seu local sem inversor próprio integrado, use os indicadores climáticos ou selecione <strong>Clima + Manual</strong> no Passo 1.
+          </div>
+        </div>
+      )}
+
       {/* BARRA DE STATUS AO VIVO */}
       {dados && (
         <div className="live-status-strip" role="status">
           <span className="live-pulse-badge">
             <i className="live-dot" />
-            {conectado ? `INVERSOR CONECTADO · ${dados.origem_ultima_leitura}` : 'AO VIVO · CLIMA E SOL EM TEMPO REAL'}
+            {conectado
+              ? usandoApiDeTeste
+                ? `LEITURA DE TESTE (NÃO REAL) · ${dados.origem_ultima_leitura}`
+                : `INVERSOR CONECTADO · ${dados.origem_ultima_leitura}`
+              : 'AO VIVO · CLIMA E SOL EM TEMPO REAL'}
           </span>
           <span className="mono" style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
             Atualizado às {dados.horario_formatado} · {dados.usina_cidade}
@@ -143,7 +164,12 @@ function CentralAoVivo({ estadoSistema }) {
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {estadoSistema?.config?.modo_conexao_inversor === 'api_inversor' && (
               <button type="button" className="btn btn-sm btn-primary" disabled={sincronizandoApi} onClick={puxarDaApiDoInversor}>
-                <PlugZap size={13} /> {sincronizandoApi ? 'Consultando API…' : 'Ler API do inversor agora'}
+                <PlugZap size={13} />{' '}
+                {sincronizandoApi
+                  ? 'Consultando API…'
+                  : usandoApiDeTeste
+                  ? 'Testar leitura da API (Modo Teste)'
+                  : 'Ler API do inversor agora'}
               </button>
             )}
             <button type="button" className="btn btn-sm" onClick={() => atualizarAgora()}>
@@ -255,74 +281,57 @@ function CentralAoVivo({ estadoSistema }) {
         </section>
       )}
 
-      {/* CONEXÃO DE INVERSOR / MEDIDOR EM TEMPO REAL */}
-      <section className="card">
-        <div className="card-header" style={{ marginBottom: 12 }}>
-          <div>
-            <h2 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <PlugZap size={18} color="var(--neural-teal)" />
-              Leitura ao vivo do inversor / medidor
-            </h2>
-            <p className="card-subtitle">
-              Informe a potência instantânea do visor do seu inversor (ou envie automaticamente via API/Webhook) para comparar com o sol deste minuto.
-            </p>
-          </div>
-          {conectado && (
-            <button type="button" className="btn btn-sm" onClick={desconectarLeiturasManuais}>
-              Voltar para estimativa automática
+      {/* CONFERÊNCIA RÁPIDA DE LEITURA (ADAPTADA AO MODO ESCOLHIDO) */}
+      <details className="card guide-panel" open={conectado}>
+        <summary>
+          <span>
+            <strong>
+              {estadoSistema?.config?.modo_conexao_inversor === 'manual'
+                ? 'Conferir leitura pontual do visor agora (opcional)'
+                : 'Informar leitura manual ou ver endpoint Webhook'}
+            </strong>
+            <small>
+              {estadoSistema?.config?.modo_conexao_inversor === 'manual'
+                ? 'No modo Clima + Manual tudo funciona sozinho pelo clima; abra aqui apenas se quiser testar um valor em kW.'
+                : 'Compare instantaneamente um valor em kW com o sol deste minuto.'}
+            </small>
+          </span>
+        </summary>
+        <div className="guide-content">
+          <div className="controls-row" style={{ alignItems: 'flex-end' }}>
+            <div className="field-group" style={{ width: 165 }}>
+              <label className="field-label" htmlFor="kw-agora">Potência agora (kW)</label>
+              <input
+                id="kw-agora"
+                type="number"
+                step="0.05"
+                min="0"
+                className="input mono"
+                value={potenciaInput}
+                onChange={(e) => definirPotenciaInput(e.target.value)}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', paddingBottom: 4 }}>
+              <button type="button" className="mini-preset" onClick={() => enviarLeituraAoVivo(dados?.potencia_esperada_agora_kw ?? 0)}>
+                Normal ({formatarNumero(dados?.potencia_esperada_agora_kw, 2)} kW)
+              </button>
+              <button type="button" className="mini-preset" onClick={() => enviarLeituraAoVivo(0)}>
+                Testar queda (0 kW)
+              </button>
+              {conectado && (
+                <button type="button" className="mini-preset" onClick={desconectarLeiturasManuais}>
+                  Voltar p/ automático
+                </button>
+              )}
+            </div>
+
+            <button type="button" className="btn btn-primary" style={{ marginLeft: 'auto' }} disabled={enviando} onClick={() => enviarLeituraAoVivo()}>
+              <Zap size={15} /> {enviando ? 'Enviando…' : 'Comparar agora'}
             </button>
-          )}
+          </div>
         </div>
-
-        <div className="controls-row" style={{ alignItems: 'flex-end' }}>
-          <div className="field-group" style={{ width: 170 }}>
-            <label className="field-label" htmlFor="kw-agora">Potência medida agora (kW)</label>
-            <input
-              id="kw-agora"
-              type="number"
-              step="0.05"
-              min="0"
-              className="input mono"
-              value={potenciaInput}
-              onChange={(e) => definirPotenciaInput(e.target.value)}
-            />
-          </div>
-
-          <div className="field-group" style={{ width: 210 }}>
-            <label className="field-label" htmlFor="origem-agora">Equipamento</label>
-            <input
-              id="origem-agora"
-              className="input"
-              value={origemInput}
-              onChange={(e) => definirOrigemInput(e.target.value)}
-            />
-          </div>
-
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', paddingBottom: 4 }}>
-            <button type="button" className="mini-preset" onClick={() => enviarLeituraAoVivo(dados?.potencia_esperada_agora_kw ?? 0)}>
-              Operação normal ({formatarNumero(dados?.potencia_esperada_agora_kw, 2)} kW)
-            </button>
-            <button type="button" className="mini-preset" onClick={() => enviarLeituraAoVivo(0)}>
-              Simular queda 0 kW
-            </button>
-          </div>
-
-          <button type="button" className="btn btn-primary" style={{ marginLeft: 'auto' }} disabled={enviando} onClick={() => enviarLeituraAoVivo()}>
-            <Zap size={15} /> {enviando ? 'Enviando…' : 'Enviar leitura agora'}
-          </button>
-        </div>
-
-        <details style={{ marginTop: 12 }}>
-          <summary style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>
-            Integrar inversor automaticamente (Home Assistant, Node-RED, Fronius, Shelly, ESP32, Growatt)
-          </summary>
-          <div className="subpanel" style={{ marginTop: 8, fontSize: 12 }}>
-            Envie um <span className="mono">POST</span> automático a cada 1 a 5 minutos para{' '}
-            <code className="mono">http://127.0.0.1:8000/api/tempo-real/leitura</code> com o JSON:{' '}
-            <code className="mono">{'{"potencia_kw": 3.45, "energia_dia_kwh": 14.2, "origem": "Inversor Solar"}'}</code>.
-          </div>
-        </details>
-      </section>
+      </details>
     </div>
   );
 }

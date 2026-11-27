@@ -15,7 +15,7 @@ import { formatarNumero } from '../utilitarios/formatadores';
 const MODELOS_API_INVERSOR = [
   {
     id: 'solarnetwork',
-    nome: 'SolarNetwork · API Real Online (pronta no código)',
+    nome: 'SolarNetwork · SÓ TESTE TÉCNICO (não reflete sua usina real)',
     url: 'https://data.solarnetwork.net/solarquery/api/v1/pub/datum/mostRecent?nodeId=1000&sourceId=%2F0145%2FS1%2FG1%2FINV%2F2',
     campo: 'data.results.0.watts',
     unidade: 'W',
@@ -364,108 +364,143 @@ export default function PainelMinhaUsina({ estadoSistema, aoSalvarUsina, aoIrPar
           </div>
         </div>
 
-        {/* BLOCO OBJETIVO DE CONEXÃO COM API / SOFTWARE DO INVERSOR */}
-        <div className="subpanel" style={{ marginTop: 18 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 12 }}>
-            <div className="subpanel-title" style={{ marginBottom: 0 }}>
-              <IconeConexao size={16} color="var(--neural-teal)" /> Conexão com API ou software do inversor
-            </div>
-
+        {/* BLOCO CLEAN DE MODO DE OPERAÇÃO (CLIMA+MANUAL vs API DO INVERSOR) */}
+        <div className="connection-selector-section">
+          <div className="connection-selector-head">
+            <span className="field-label" style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+              Como você vai acompanhar sua usina?
+            </span>
             {aoIrParaAba && (
-              <button type="button" className="mini-preset" onClick={() => aoIrParaAba('apis')}>
-                Gerenciar todas as APIs do projeto →
+              <button type="button" className="link-subtle-btn" onClick={() => aoIrParaAba('apis')}>
+                Ver painel de APIs →
               </button>
             )}
           </div>
 
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }} role="group" aria-label="Modo de conexão do inversor">
+          <div className="mode-cards-grid" role="radiogroup" aria-label="Modo de acompanhamento da usina">
             <button
               type="button"
-              className={`btn btn-sm ${formulario.modo_conexao_inversor === 'api_inversor' ? 'btn-primary' : ''}`}
+              role="radio"
+              aria-checked={formulario.modo_conexao_inversor === 'manual'}
+              className={`mode-choice-card ${formulario.modo_conexao_inversor === 'manual' ? 'is-active' : ''}`}
+              onClick={() => {
+                definirFormulario({ ...formulario, modo_conexao_inversor: 'manual' });
+                definirResultadoTesteApi(null);
+              }}
+            >
+              <div className="mode-choice-top">
+                <strong>Clima + Manual</strong>
+                <span className="mode-tag">Sem API de inversor</span>
+              </div>
+              <p>Calcula tudo pelo sol ao vivo da sua cidade; você digita os kWh gerados quando quiser comparar.</p>
+            </button>
+
+            <button
+              type="button"
+              role="radio"
+              aria-checked={formulario.modo_conexao_inversor === 'api_inversor'}
+              className={`mode-choice-card ${formulario.modo_conexao_inversor === 'api_inversor' ? 'is-active' : ''}`}
               onClick={() => definirFormulario({ ...formulario, modo_conexao_inversor: 'api_inversor' })}
             >
-              API do Inversor / Software (HTTP)
+              <div className="mode-choice-top">
+                <strong>API do Inversor</strong>
+                <span className="mode-tag">Automático</span>
+              </div>
+              <p>Busca a potência direto do software/API do inversor (SolarNetwork, Fronius, Shelly ou nuvem).</p>
             </button>
+
             <button
               type="button"
-              className={`btn btn-sm ${formulario.modo_conexao_inversor === 'webhook_push' ? 'btn-primary' : ''}`}
-              onClick={() => definirFormulario({ ...formulario, modo_conexao_inversor: 'webhook_push' })}
+              role="radio"
+              aria-checked={formulario.modo_conexao_inversor === 'webhook_push'}
+              className={`mode-choice-card ${formulario.modo_conexao_inversor === 'webhook_push' ? 'is-active' : ''}`}
+              onClick={() => {
+                definirFormulario({ ...formulario, modo_conexao_inversor: 'webhook_push' });
+                definirResultadoTesteApi(null);
+              }}
             >
-              Webhook (Home Assistant / ESP32)
-            </button>
-            <button
-              type="button"
-              className={`btn btn-sm ${formulario.modo_conexao_inversor === 'manual' ? 'btn-primary' : ''}`}
-              onClick={() => definirFormulario({ ...formulario, modo_conexao_inversor: 'manual' })}
-            >
-              Sem API (Clima + Manual)
+              <div className="mode-choice-top">
+                <strong>Webhook Local</strong>
+                <span className="mode-tag">Home Assistant</span>
+              </div>
+              <p>Seu medidor Wi-Fi, ESP32 ou automação envia as leituras direto para o Helionta.</p>
             </button>
           </div>
 
-          {formulario.modo_conexao_inversor === 'api_inversor' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div className="form-grid-3">
-                <div className="field-group">
-                  <label className="field-label" htmlFor="preset-inversor-api">Sistema / Fabricante</label>
-                  <select
-                    id="preset-inversor-api"
-                    className="select"
-                    value={MODELOS_API_INVERSOR.find((m) => m.url === formulario.url_api_inversor)?.id || 'custom'}
-                    onChange={(e) => {
-                      const m = MODELOS_API_INVERSOR.find((item) => item.id === e.target.value);
-                      if (m) {
-                        definirFormulario((atual) => ({
-                          ...atual,
-                          provedor_inversor: m.nome.split('·')[0].trim(),
-                          url_api_inversor: m.url || atual.url_api_inversor,
-                          campo_potencia_json: m.campo,
-                          unidade_potencia_api: m.unidade,
-                        }));
-                        definirResultadoTesteApi(null);
-                      }
-                    }}
-                  >
-                    {MODELOS_API_INVERSOR.map((m) => (
-                      <option key={m.id} value={m.id}>{m.nome}</option>
-                    ))}
-                  </select>
-                </div>
+          {formulario.modo_conexao_inversor === 'manual' && (
+            <div className="mode-explain-strip">
+              <span><strong>Tempo real:</strong> estima kW agora pelo sol atual</span>
+              <span>·</span>
+              <span><strong>Previsão 24h:</strong> 100% ativa via Open-Meteo</span>
+              <span>·</span>
+              <span><strong>Saúde das placas:</strong> basta lançar o kWh do dia ou planilha</span>
+            </div>
+          )}
 
-                <div className="field-group" style={{ gridColumn: 'span 2' }}>
-                  <label className="field-label" htmlFor="url-api-inversor">URL da API do inversor</label>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <input
-                      id="url-api-inversor"
-                      className="input mono"
-                      style={{ flex: 1 }}
-                      placeholder="https://..."
-                      value={formulario.url_api_inversor || ''}
-                      onChange={(e) => definirFormulario({ ...formulario, url_api_inversor: e.target.value })}
-                    />
-                    <button type="button" className="btn" disabled={testandoApi || !formulario.url_api_inversor} onClick={testarConexaoInversor}>
-                      <IconeTestar size={14} /> {testandoApi ? 'Testando…' : 'Testar API'}
-                    </button>
-                  </div>
+          {formulario.modo_conexao_inversor === 'api_inversor' && (
+            <div className="mode-config-inline">
+              {(formulario.url_api_inversor || '').toLowerCase().includes('solarnetwork.net') && (
+                <div className="test-only-callout" role="note">
+                  <strong>Aviso importante — API apenas para título de teste:</strong> este conector SolarNetwork consulta um inversor público externo só para testar a comunicação no código e <strong>não mostra a geração real da sua usina</strong>. Caso não tenha o link/IP real do seu inversor, escolha <strong>Clima + Manual</strong> acima.
                 </div>
+              )}
+
+              <div className="mode-config-row">
+                <select
+                  aria-label="Conector do inversor"
+                  className="select"
+                  style={{ flex: '1 1 240px' }}
+                  value={MODELOS_API_INVERSOR.find((m) => m.url === formulario.url_api_inversor)?.id || 'custom'}
+                  onChange={(e) => {
+                    const m = MODELOS_API_INVERSOR.find((item) => item.id === e.target.value);
+                    if (m) {
+                      definirFormulario((atual) => ({
+                        ...atual,
+                        provedor_inversor: m.nome.split('·')[0].trim(),
+                        url_api_inversor: m.url || atual.url_api_inversor,
+                        campo_potencia_json: m.campo,
+                        unidade_potencia_api: m.unidade,
+                      }));
+                      definirResultadoTesteApi(null);
+                    }
+                  }}
+                >
+                  {MODELOS_API_INVERSOR.map((m) => (
+                    <option key={m.id} value={m.id}>{m.nome}</option>
+                  ))}
+                </select>
+
+                <input
+                  aria-label="URL da API do inversor"
+                  className="input mono"
+                  style={{ flex: '2 1 280px', fontSize: 12 }}
+                  placeholder="https://endereco-da-api-do-inversor..."
+                  value={formulario.url_api_inversor || ''}
+                  onChange={(e) => definirFormulario({ ...formulario, url_api_inversor: e.target.value })}
+                />
+
+                <button type="button" className="btn" disabled={testandoApi || !formulario.url_api_inversor} onClick={testarConexaoInversor}>
+                  <IconeTestar size={14} /> {testandoApi ? 'Testando…' : 'Testar conexão'}
+                </button>
               </div>
 
-              <details>
-                <summary style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Opções de JSON e Token da API (opcional)</summary>
-                <div className="form-grid-3" style={{ marginTop: 8 }}>
+              <details className="subtle-details">
+                <summary>Credenciais e mapeamento JSON (opcional)</summary>
+                <div className="form-grid-3" style={{ marginTop: 10 }}>
                   <div className="field-group">
-                    <label className="field-label" htmlFor="api-campo-json">Caminho da potência no JSON</label>
+                    <label className="field-label" htmlFor="api-campo-json">Campo JSON</label>
                     <input id="api-campo-json" className="input mono" value={formulario.campo_potencia_json || ''} onChange={(e) => definirFormulario({ ...formulario, campo_potencia_json: e.target.value })} />
                   </div>
                   <div className="field-group">
-                    <label className="field-label" htmlFor="api-unidade">Unidade retornada</label>
+                    <label className="field-label" htmlFor="api-unidade">Unidade</label>
                     <select id="api-unidade" className="select" value={formulario.unidade_potencia_api || 'W'} onChange={(e) => definirFormulario({ ...formulario, unidade_potencia_api: e.target.value })}>
                       <option value="W">Watts (W)</option>
                       <option value="kW">Quilowatts (kW)</option>
                     </select>
                   </div>
                   <div className="field-group">
-                    <label className="field-label" htmlFor="api-token">Token / Chave (opcional)</label>
-                    <input id="api-token" type="password" className="input mono" value={formulario.token_api_inversor || ''} onChange={(e) => definirFormulario({ ...formulario, token_api_inversor: e.target.value })} />
+                    <label className="field-label" htmlFor="api-token">Token / API Key</label>
+                    <input id="api-token" type="password" className="input mono" placeholder="Opcional" value={formulario.token_api_inversor || ''} onChange={(e) => definirFormulario({ ...formulario, token_api_inversor: e.target.value })} />
                   </div>
                 </div>
               </details>
@@ -479,8 +514,8 @@ export default function PainelMinhaUsina({ estadoSistema, aoSalvarUsina, aoIrPar
           )}
 
           {formulario.modo_conexao_inversor === 'webhook_push' && (
-            <div style={{ fontSize: 12.5, color: 'var(--text-secondary)' }}>
-              Configure seu software (Home Assistant, Node-RED, Shelly ou ESP32) para enviar <code className="mono">POST http://127.0.0.1:8000/api/tempo-real/leitura</code> com <code className="mono">{'{"potencia_kw": 3.5}'}</code>.
+            <div className="mode-explain-strip mono" style={{ fontSize: 11.5 }}>
+              Endpoint receptor ativo: <strong>POST http://127.0.0.1:8000/api/tempo-real/leitura</strong> · JSON: <code>{'{"potencia_kw": 3.5}'}</code>
             </div>
           )}
         </div>

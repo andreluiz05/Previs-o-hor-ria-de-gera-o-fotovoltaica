@@ -222,7 +222,7 @@ export default function AplicacaoSolarV3() {
                 {abaAtiva === 'monitoramento' && <PainelMonitoramento estadoSistema={estadoSistema} aoIrParaAba={navegar} />}
                 {abaAtiva === 'operacional' && <PainelPrevisaoOperacional estadoSistema={estadoSistema} aoIrParaAba={navegar} />}
                 {abaAtiva === 'consulta' && <PainelConsultaComparacao estadoSistema={estadoSistema} aoIrParaAba={navegar} />}
-                {abaAtiva === 'apis' && <PainelCentralApis aoAtualizarConfig={carregarEstadoSistema} aoIrParaAba={navegar} />}
+                {abaAtiva === 'apis' && <PainelCentralApis estadoSistema={estadoSistema} aoAtualizarConfig={carregarEstadoSistema} aoIrParaAba={navegar} />}
                 {abaAtiva === 'benchmark' && <PainelBenchmark estadoSistema={estadoSistema} />}
                 {abaAtiva === 'fisica' && <PainelLaboratorioFisico estadoSistema={estadoSistema} />}
                 {abaAtiva === 'treino' && <PainelTreinamentoDados estadoSistema={estadoSistema} aoConcluirTreinamento={carregarEstadoSistema} />}

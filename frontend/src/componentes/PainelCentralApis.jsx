@@ -1,23 +1,44 @@
 import React, { useEffect, useState } from 'react';
 import {
   PlugZap,
-  Globe,
+  CloudSun,
+  MapPin,
+  Database,
+  Radio,
   Plus,
+  X,
   RefreshCw,
   CheckCircle2,
   AlertTriangle,
   Trash2,
-  Power,
   Zap,
 } from 'lucide-react';
 import { clienteApi } from '../api/clienteApi';
 import { formatarNumero } from '../utilitarios/formatadores';
 
-export default function PainelCentralApis({ aoAtualizarConfig, aoIrParaAba }) {
+function extrairDominioCurto(url) {
+  try {
+    const u = new URL(url.replace(/^POST\s+/i, ''));
+    return u.host;
+  } catch {
+    return 'local';
+  }
+}
+
+function iconePorCategoria(cat) {
+  if (cat === 'clima') return CloudSun;
+  if (cat === 'geolocalizacao') return MapPin;
+  if (cat === 'historico') return Database;
+  if (cat === 'webhook') return Radio;
+  return PlugZap;
+}
+
+export default function PainelCentralApis({ estadoSistema, aoAtualizarConfig, aoIrParaAba }) {
   const [central, definirCentral] = useState(null);
   const [carregando, definirCarregando] = useState(true);
   const [testandoId, definirTestandoId] = useState('');
   const [resultadosNativas, definirResultadosNativas] = useState({});
+  const [abrirModalNova, definirAbrirModalNova] = useState(false);
   const [mensagem, definirMensagem] = useState('');
   const [erro, definirErro] = useState('');
 
@@ -37,13 +58,13 @@ export default function PainelCentralApis({ aoAtualizarConfig, aoIrParaAba }) {
       definirCentral(await clienteApi.obterCentralApis());
       definirErro('');
     } catch (e) {
-      definirErro(e.message || 'Não foi possível carregar as APIs.');
+      definirErro(e.message || 'Não foi possível carregar as integrações.');
     } finally {
       definirCarregando(false);
     }
   };
 
-  useEffect(() => { carregar(); }, []);
+  useEffect(() => { carregar(); }, [estadoSistema?.config?.modo_conexao_inversor, estadoSistema?.config?.url_api_inversor]);
 
   const testarNativa = async (api) => {
     definirTestandoId(api.id);
@@ -84,26 +105,20 @@ export default function PainelCentralApis({ aoAtualizarConfig, aoIrParaAba }) {
       const resp = await clienteApi.usarApiNoInversorPrincipal(id);
       definirCentral(resp.central);
       if (aoAtualizarConfig) await aoAtualizarConfig();
-      definirMensagem('API definida como conector principal do seu inversor!');
+      definirMensagem('Conectado como inversor principal da usina!');
     } catch (e) {
       definirErro(e.message);
     }
   };
 
   const alternarAtiva = async (api) => {
-    try {
-      definirCentral(await clienteApi.alternarEstadoApi(api.id, !api.ativa));
-    } catch (e) {
-      definirErro(e.message);
-    }
+    try { definirCentral(await clienteApi.alternarEstadoApi(api.id, !api.ativa)); }
+    catch (e) { definirErro(e.message); }
   };
 
   const excluirApi = async (id) => {
-    try {
-      definirCentral(await clienteApi.excluirApiPersonalizada(id));
-    } catch (e) {
-      definirErro(e.message);
-    }
+    try { definirCentral(await clienteApi.excluirApiPersonalizada(id)); }
+    catch (e) { definirErro(e.message); }
   };
 
   const salvarNovaApi = async (e) => {
@@ -115,180 +130,92 @@ export default function PainelCentralApis({ aoAtualizarConfig, aoIrParaAba }) {
       const resp = await clienteApi.adicionarApiPersonalizada(novaApi);
       definirCentral(resp);
       definirNovaApi({ nome: '', categoria: 'inversor', url: '', unidade: 'W', campo_potencia: '', token: '' });
-      definirMensagem('Nova API personalizada cadastrada e ativada!');
+      definirAbrirModalNova(false);
+      definirMensagem('Nova API adicionada com sucesso!');
     } catch (err) {
-      definirErro(err.message || 'Erro ao adicionar API.');
+      definirErro(err.message || 'Erro ao salvar API.');
     } finally {
       definirAdicionando(false);
     }
   };
 
-  const preencherModelo = (mod) => {
-    definirNovaApi((atual) => ({
-      ...atual,
-      nome: mod.nome,
-      categoria: 'inversor',
-      url: mod.url,
-      campo_potencia: mod.campo_potencia,
-      unidade: mod.unidade,
-    }));
-  };
+  const urlAtivaUsina = estadoSistema?.config?.url_api_inversor;
+  const modoAtual = estadoSistema?.config?.modo_conexao_inversor || 'manual';
 
   return (
     <div className="view-stack">
+      {/* BARRA DE TOPO MINIMALISTA */}
+      <div className="integrations-topbar">
+        <div className="integrations-summary">
+          <span className="live-pulse-badge">
+            <i className="live-dot" />
+            {central?.total_ativas || 0} integrações ativas
+          </span>
+          <span style={{ fontSize: 12.5, color: 'var(--text-secondary)' }}>
+            Modo da usina:{' '}
+            <strong>
+              {modoAtual === 'api_inversor'
+                ? `API do Inversor (${estadoSistema?.config?.provedor_inversor || 'HTTP'})`
+                : modoAtual === 'webhook_push'
+                ? 'Webhook Local'
+                : 'Clima + Manual (sem API de inversor)'}
+            </strong>
+          </span>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8 }}>
+          {aoIrParaAba && (
+            <button type="button" className="btn btn-sm" onClick={() => aoIrParaAba('usina')}>
+              Trocar modo no Passo 1
+            </button>
+          )}
+          <button
+            type="button"
+            className="btn btn-sm btn-primary"
+            onClick={() => definirAbrirModalNova((v) => !v)}
+          >
+            {abrirModalNova ? <X size={14} /> : <Plus size={14} />}
+            {abrirModalNova ? 'Fechar formulário' : 'Nova API'}
+          </button>
+        </div>
+      </div>
+
       {mensagem && (
         <div className="notice-banner teal" role="status">
-          <CheckCircle2 size={18} color="var(--neural-teal)" />
+          <CheckCircle2 size={17} color="var(--neural-teal)" />
           <div>{mensagem}</div>
         </div>
       )}
       {erro && (
         <div className="notice-banner danger" role="alert">
-          <AlertTriangle size={18} />
+          <AlertTriangle size={17} />
           <div>{erro}</div>
         </div>
       )}
 
-      {/* BLOCO 1: APIS NATIVAS DO SISTEMA */}
-      <section className="card">
-        <div className="card-header" style={{ marginBottom: 14 }}>
-          <div>
-            <h2 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Globe size={19} color="var(--neural-teal)" />
-              APIs nativas do projeto ({central?.apis_nativas?.length || 0})
-            </h2>
-            <p className="card-subtitle">Serviços integrados para clima ao vivo, geolocalização, histórico e recepção do inversor.</p>
-          </div>
-          {aoIrParaAba && (
-            <button type="button" className="btn btn-sm" onClick={() => aoIrParaAba('monitoramento')}>
-              <Zap size={14} /> Abrir Tempo real
-            </button>
-          )}
-        </div>
-
-        <div className="api-list-grid">
-          {(central?.apis_nativas || []).map((api) => {
-            const teste = resultadosNativas[api.id];
-            return (
-              <div key={api.id} className="api-item-card">
-                <div className="api-item-top">
-                  <div>
-                    <span className={`status-pill ${api.ativa ? 'real' : ''}`}>
-                      {api.ativa ? '● Ativa' : '○ Desativada'}
-                    </span>
-                    <strong className="api-item-title">{api.nome}</strong>
-                    <p className="api-item-desc">{api.papel}</p>
-                  </div>
-
-                  <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                    {api.editavel && aoIrParaAba && (
-                      <button type="button" className="btn btn-sm" onClick={() => aoIrParaAba('usina')}>
-                        Editar no Passo 1
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      className="btn btn-sm"
-                      disabled={testandoId === api.id}
-                      onClick={() => testarNativa(api)}
-                    >
-                      <RefreshCw size={13} /> {testandoId === api.id ? 'Testando…' : 'Testar'}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="api-item-url mono">{api.endpoint_post || api.url}</div>
-
-                {teste && (
-                  <div className={`api-test-result ${teste.ok ? 'is-ok' : 'is-err'}`}>
-                    {teste.mensagem}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* BLOCO 2: APIS PERSONALIZADAS E DE INVERSORES */}
-      <section className="card">
-        <div className="card-header" style={{ marginBottom: 14 }}>
-          <div>
-            <h2 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <PlugZap size={19} color="var(--solar-amber)" />
-              APIs personalizadas e de inversores ({central?.apis_personalizadas?.length || 0})
-            </h2>
-            <p className="card-subtitle">
-              Gerencie APIs próprias ou conectores de inversores. A API real da <strong>SolarNetwork</strong> já está incluída abaixo para você testar no código agora mesmo.
-            </p>
-          </div>
-        </div>
-
-        <div className="api-list-grid" style={{ marginBottom: 20 }}>
-          {(central?.apis_personalizadas || []).map((api) => (
-            <div key={api.id} className="api-item-card">
-              <div className="api-item-top">
-                <div>
-                  <span className={`status-pill ${api.ativa ? 'real' : ''}`}>
-                    {api.ativa ? '● Ativa' : '○ Pausada'}
-                  </span>
-                  <strong className="api-item-title">{api.nome}</strong>
-                  <p className="api-item-desc">
-                    Tipo: <strong>{api.categoria}</strong> · Unidade: <span className="mono">{api.unidade}</span>
-                    {api.campo_potencia ? <> · Campo JSON: <code className="mono">{api.campo_potencia}</code></> : null}
-                    {api.possui_token ? <> · Token: <span className="mono">{api.token_mascarado}</span></> : null}
-                  </p>
-                </div>
-
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-primary"
-                    disabled={testandoId === api.id}
-                    onClick={() => testarPersonalizada(api.id)}
-                  >
-                    <RefreshCw size={13} /> {testandoId === api.id ? 'Consultando…' : 'Testar API'}
-                  </button>
-                  {api.categoria === 'inversor' && (
-                    <button type="button" className="btn btn-sm" onClick={() => usarNoInversor(api.id)}>
-                      <Zap size={13} /> Usar na minha usina
-                    </button>
-                  )}
-                  <button type="button" className="btn btn-sm" onClick={() => alternarAtiva(api)} title="Ativar ou pausar">
-                    <Power size={13} /> {api.ativa ? 'Pausar' : 'Ativar'}
-                  </button>
-                  <button type="button" className="btn btn-sm" onClick={() => excluirApi(api.id)} title="Excluir API">
-                    <Trash2 size={13} />
-                  </button>
-                </div>
-              </div>
-
-              <div className="api-item-url mono">{api.url}</div>
-
-              {api.ultimo_teste_em && (
-                <div className={`api-test-result ${api.ultimo_status === 'online' ? 'is-ok' : 'is-err'}`}>
-                  Último teste às {api.ultimo_teste_em}: {api.ultimo_status === 'online' ? 'Online' : 'Falha'} ({api.ultima_latencia_ms} ms)
-                  {api.ultima_potencia_kw !== null && api.ultima_potencia_kw !== undefined && (
-                    <> · Potência lida: <strong>{formatarNumero(api.ultima_potencia_kw, 3)} kW</strong></>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
-
-          {!carregando && !central?.apis_personalizadas?.length && (
-            <div className="subpanel" style={{ textAlign: 'center' }}>Nenhuma API personalizada cadastrada.</div>
-          )}
-        </div>
-
-        {/* FORMULÁRIO SIMPLES PARA CADASTRAR NOVA API */}
-        <form onSubmit={salvarNovaApi} className="subpanel">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
-            <strong style={{ fontSize: 14 }}>Adicionar nova API personalizada</strong>
+      {/* FORMULÁRIO SOB DEMANDA (SÓ APARECE QUANDO CLICA EM + NOVA API) */}
+      {abrirModalNova && (
+        <form onSubmit={salvarNovaApi} className="card integration-new-form">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+            <h2 className="card-title" style={{ fontSize: 16 }}>Conectar nova API personalizada</h2>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {(central?.modelos_conector || []).slice(0, 3).map((mod) => (
-                <button key={mod.id} type="button" className="mini-preset" onClick={() => preencherModelo(mod)}>
-                  Modelo: {mod.nome.split('·')[0].trim()}
+                <button
+                  key={mod.id}
+                  type="button"
+                  className="mini-preset"
+                  onClick={() =>
+                    definirNovaApi({
+                      nome: mod.nome.split('·')[0].trim(),
+                      categoria: 'inversor',
+                      url: mod.url,
+                      campo_potencia: mod.campo_potencia,
+                      unidade: mod.unidade,
+                      token: '',
+                    })
+                  }
+                >
+                  Preencher: {mod.nome.split('·')[0].trim()}
                 </button>
               ))}
             </div>
@@ -296,53 +223,200 @@ export default function PainelCentralApis({ aoAtualizarConfig, aoIrParaAba }) {
 
           <div className="form-grid-3">
             <div className="field-group">
-              <label className="field-label" htmlFor="nova-api-nome">Nome da API</label>
-              <input id="nova-api-nome" className="input" placeholder="Ex.: Inversor Fronius Garagem" value={novaApi.nome} onChange={(e) => definirNovaApi({ ...novaApi, nome: e.target.value })} required />
+              <label className="field-label" htmlFor="nova-api-nome">Nome</label>
+              <input id="nova-api-nome" className="input" placeholder="Ex.: Inversor Fronius" value={novaApi.nome} onChange={(e) => definirNovaApi({ ...novaApi, nome: e.target.value })} required />
             </div>
 
-            <div className="field-group">
-              <label className="field-label" htmlFor="nova-api-cat">Categoria</label>
-              <select id="nova-api-cat" className="select" value={novaApi.categoria} onChange={(e) => definirNovaApi({ ...novaApi, categoria: e.target.value })}>
-                <option value="inversor">Inversor Solar</option>
-                <option value="medidor">Medidor Inteligente</option>
-                <option value="clima">Estação / Clima</option>
-                <option value="outro">Outra integração</option>
-              </select>
-            </div>
-
-            <div className="field-group">
-              <label className="field-label" htmlFor="nova-api-unid">Unidade de potência</label>
-              <select id="nova-api-unid" className="select" value={novaApi.unidade} onChange={(e) => definirNovaApi({ ...novaApi, unidade: e.target.value })}>
-                <option value="W">Watts (W → converte p/ kW)</option>
-                <option value="kW">Quilowatts (kW)</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="form-grid-3" style={{ marginTop: 12 }}>
             <div className="field-group" style={{ gridColumn: 'span 2' }}>
-              <label className="field-label" htmlFor="nova-api-url">URL HTTP/JSON da API</label>
+              <label className="field-label" htmlFor="nova-api-url">URL da API (HTTP/HTTPS)</label>
               <input id="nova-api-url" className="input mono" placeholder="https://..." value={novaApi.url} onChange={(e) => definirNovaApi({ ...novaApi, url: e.target.value })} required />
             </div>
-
-            <div className="field-group">
-              <label className="field-label" htmlFor="nova-api-campo">Campo JSON (opcional)</label>
-              <input id="nova-api-campo" className="input mono" placeholder="Ex.: Body.Data.PAC.Value" value={novaApi.campo_potencia} onChange={(e) => definirNovaApi({ ...novaApi, campo_potencia: e.target.value })} />
-            </div>
           </div>
 
-          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap', marginTop: 12 }}>
-            <div className="field-group" style={{ flex: 1, minWidth: 200 }}>
-              <label className="field-label" htmlFor="nova-api-token">Token / API Key (opcional)</label>
-              <input id="nova-api-token" type="password" className="input mono" placeholder="Bearer token se exigido pela API" value={novaApi.token} onChange={(e) => definirNovaApi({ ...novaApi, token: e.target.value })} />
+          <details className="subtle-details" style={{ marginTop: 10 }}>
+            <summary>Opções avançadas (unidade, campo JSON e token)</summary>
+            <div className="form-grid-3" style={{ marginTop: 10 }}>
+              <div className="field-group">
+                <label className="field-label" htmlFor="nova-api-cat">Tipo</label>
+                <select id="nova-api-cat" className="select" value={novaApi.categoria} onChange={(e) => definirNovaApi({ ...novaApi, categoria: e.target.value })}>
+                  <option value="inversor">Inversor Solar</option>
+                  <option value="medidor">Medidor Wi-Fi</option>
+                  <option value="clima">Clima</option>
+                  <option value="outro">Outro</option>
+                </select>
+              </div>
+              <div className="field-group">
+                <label className="field-label" htmlFor="nova-api-unid">Unidade</label>
+                <select id="nova-api-unid" className="select" value={novaApi.unidade} onChange={(e) => definirNovaApi({ ...novaApi, unidade: e.target.value })}>
+                  <option value="W">Watts (W)</option>
+                  <option value="kW">Quilowatts (kW)</option>
+                </select>
+              </div>
+              <div className="field-group">
+                <label className="field-label" htmlFor="nova-api-campo">Caminho JSON</label>
+                <input id="nova-api-campo" className="input mono" placeholder="Automático" value={novaApi.campo_potencia} onChange={(e) => definirNovaApi({ ...novaApi, campo_potencia: e.target.value })} />
+              </div>
             </div>
+          </details>
 
-            <button type="submit" className="btn btn-primary" disabled={adicionando}>
-              <Plus size={15} /> {adicionando ? 'Adicionando…' : 'Cadastrar API'}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 14 }}>
+            <button type="button" className="btn btn-sm" onClick={() => definirAbrirModalNova(false)}>Cancelar</button>
+            <button type="submit" className="btn btn-sm btn-primary" disabled={adicionando}>
+              {adicionando ? 'Salvando…' : 'Salvar conexão'}
             </button>
           </div>
         </form>
-      </section>
+      )}
+
+      {/* SEÇÃO 1: SUAS APIS DE INVERSOR / PERSONALIZADAS (EM DESTAQUE CLEAN) */}
+      <div>
+        <div className="section-heading-clean">
+          <h2>Conectores de inversores e APIs personalizadas</h2>
+          <span>Conecte o endereço real do seu inversor ou valide o funcionamento técnico com a API de teste</span>
+        </div>
+
+        <div className="test-only-callout" style={{ marginBottom: 14 }} role="note">
+          <strong>Importante — API de inversor pré-cadastrada não mostra a realidade:</strong> a integração <strong>SolarNetwork</strong> incluída no projeto serve <strong>exclusivamente a título de teste de código</strong> (lê uma usina pública remota e não reflete a geração real do seu telhado/planta). Na operação real sem inversor próprio integrado via rede, utilize o modo <strong>Clima + Manual</strong>.
+        </div>
+
+        <div className="integrations-grid">
+          {(central?.apis_personalizadas || []).map((api) => {
+            const emUsoNaUsina = modoAtual === 'api_inversor' && urlAtivaUsina === api.url;
+            const ehApiDeTeste = (api.url || '').toLowerCase().includes('solarnetwork.net');
+            return (
+              <article key={api.id} className={`integration-card ${emUsoNaUsina ? 'is-primary-connector' : ''}`}>
+                <div className="integration-card-head">
+                  <span className="integration-icon amber">
+                    <PlugZap size={18} />
+                  </span>
+                  <div className="integration-meta">
+                    <div className="integration-title-row">
+                      <strong>{api.nome}</strong>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        {ehApiDeTeste && (
+                          <span className="integration-dot-badge warn">Só teste · Não é dado real</span>
+                        )}
+                        <span className={`integration-dot-badge ${api.ativa ? 'on' : 'off'}`}>
+                          {emUsoNaUsina ? 'Em uso na usina' : api.ativa ? 'Ativa' : 'Pausada'}
+                        </span>
+                      </div>
+                    </div>
+                    <span className="integration-host mono">
+                      {extrairDominioCurto(api.url)} · {api.unidade}
+                      {ehApiDeTeste ? ' · Planta pública externa de demonstração' : ''}
+                    </span>
+                  </div>
+                </div>
+
+                {api.ultimo_teste_em && (
+                  <div className={`integration-ping ${api.ultimo_status === 'online' ? 'ok' : 'err'}`}>
+                    <span>
+                      {api.ultimo_status === 'online'
+                        ? `${ehApiDeTeste ? 'Teste HTTP OK' : 'Online'} · ${api.ultima_latencia_ms} ms`
+                        : 'Sem resposta'}
+                    </span>
+                    {api.ultima_potencia_kw !== null && api.ultima_potencia_kw !== undefined && (
+                      <strong>
+                        {formatarNumero(api.ultima_potencia_kw, 2)} kW{ehApiDeTeste ? ' (teste)' : ''}
+                      </strong>
+                    )}
+                  </div>
+                )}
+
+                <div className="integration-card-foot">
+                  <button
+                    type="button"
+                    className="btn btn-sm"
+                    disabled={testandoId === api.id}
+                    onClick={() => testarPersonalizada(api.id)}
+                  >
+                    <RefreshCw size={13} /> {testandoId === api.id ? 'Testando…' : 'Testar'}
+                  </button>
+
+                  {api.categoria === 'inversor' && !emUsoNaUsina && (
+                    <button type="button" className="btn btn-sm btn-primary" onClick={() => usarNoInversor(api.id)}>
+                      <Zap size={13} /> Usar na usina
+                    </button>
+                  )}
+
+                  <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+                    <button type="button" className="mini-preset" onClick={() => alternarAtiva(api)}>
+                      {api.ativa ? 'Pausar' : 'Ativar'}
+                    </button>
+                    <button type="button" className="mini-preset" onClick={() => excluirApi(api.id)} aria-label="Remover API" title="Remover">
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+
+          {!carregando && !central?.apis_personalizadas?.length && (
+            <div className="card" style={{ gridColumn: '1 / -1', textAlign: 'center', padding: 24 }}>
+              <p style={{ margin: '0 0 10px', color: 'var(--text-secondary)' }}>Nenhuma API personalizada cadastrada.</p>
+              <button type="button" className="btn btn-sm btn-primary" onClick={() => definirAbrirModalNova(true)}>
+                <Plus size={14} /> Adicionar primeira API
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* SEÇÃO 2: SERVIÇOS NATIVOS DO HELIONTA (GRADE CLEAN SEM POLUIÇÃO DE URL) */}
+      <div>
+        <div className="section-heading-clean">
+          <h2>Serviços nativos do sistema</h2>
+          <span>APIs internas que mantêm o clima, o mapa e os cálculos funcionando mesmo sem inversor conectado</span>
+        </div>
+
+        <div className="integrations-grid">
+          {(central?.apis_nativas || []).map((api) => {
+            const Icone = iconePorCategoria(api.categoria);
+            const teste = resultadosNativas[api.id];
+            return (
+              <article key={api.id} className="integration-card">
+                <div className="integration-card-head">
+                  <span className="integration-icon">
+                    <Icone size={18} />
+                  </span>
+                  <div className="integration-meta">
+                    <div className="integration-title-row">
+                      <strong>{api.nome}</strong>
+                      <span className={`integration-dot-badge ${api.ativa ? 'on' : 'off'}`}>
+                        {api.ativa ? 'Ativa' : 'Inativa'}
+                      </span>
+                    </div>
+                    <p className="integration-desc">{api.papel}</p>
+                  </div>
+                </div>
+
+                {teste && (
+                  <div className={`integration-ping ${teste.ok ? 'ok' : 'err'}`}>
+                    <span>{teste.ok ? `Respondendo · ${teste.latencia_ms} ms` : 'Indisponível'}</span>
+                    {teste.potencia_kw !== null && teste.potencia_kw !== undefined && (
+                      <strong>{formatarNumero(teste.potencia_kw, 2)} kW</strong>
+                    )}
+                  </div>
+                )}
+
+                <div className="integration-card-foot">
+                  <span className="integration-host mono">{extrairDominioCurto(api.url)}</span>
+                  <button
+                    type="button"
+                    className="mini-preset"
+                    style={{ marginLeft: 'auto', padding: '5px 10px', fontSize: 11 }}
+                    disabled={testandoId === api.id}
+                    onClick={() => testarNativa(api)}
+                  >
+                    {testandoId === api.id ? 'Verificando…' : 'Verificar sinal'}
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
