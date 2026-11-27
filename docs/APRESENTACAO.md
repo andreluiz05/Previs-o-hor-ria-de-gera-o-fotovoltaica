@@ -2,7 +2,7 @@
 
 ## Abrir
 
-Clique duas vezes em **iniciar_apresentacao.bat**. O navegador abrirá em **http://127.0.0.1:8000**. O inicializador reutiliza o servidor se ele já estiver funcionando. Não é necessário abrir dois terminais.
+Clique duas vezes em **`scripts\Iniciar Helionta.bat`**. O navegador abrirá em **http://127.0.0.1:8000**. O inicializador reutiliza o servidor se ele já estiver funcionando. Não é necessário abrir dois terminais.
 
 ## 1. Colocar as informações
 
@@ -41,7 +41,7 @@ Na comparação de CSV, as primeiras 24 horas usam a referência física: falta 
 
 ## 4. Mostrar dados chegando automaticamente
 
-Entre em **Monitoramento > Fonte pública online** para mostrar a coleta de uma instalação externa da SolarNetwork. Use **Conectar API** e **Desconectar API** para demonstrar o controle da conexão. Ao desconectar, o histórico permanece salvo e a previsão com os dados cadastrados continua disponível. Use **Configurar minha usina** para preencher os equipamentos e depois abrir a previsão. As medições têm origem, horário e identificação de atraso; consulte [FONTE_PUBLICA.md](FONTE_PUBLICA.md) para detalhes.
+Abra **Inversor público** e use **Conectar API** para acompanhar a potência em watts. Mostre à turma o horário que acompanha o valor e as últimas medições publicadas. Quando a fonte demora a enviar novos dados, o painel indica leitura atrasada. **Desconectar API** pausa a coleta e preserva o histórico. [Guia da fonte pública](FONTE_PUBLICA.md)
 
 Para simular os equipamentos cadastrados de Igarassu, escolha **Simulador**, o modo **Acelerado** e o cenário desejado. Clique em **Nova simulação** para começar um histórico vazio, depois use iniciar/pausar conforme os controles da tela. A cada dois segundos, o simulador avança quinze minutos e registra a potência e a energia. As sessões ficam salvas e podem ser exportadas.
 

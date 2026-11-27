@@ -28,7 +28,6 @@ import {
 } from 'lucide-react';
 import { clienteApi } from '../api/clienteApi';
 import { formatarNumero } from '../utilitarios/formatadores';
-import PainelFontePublica from './PainelFontePublica';
 import { BarraProximoPasso } from './TrilhaGuiada';
 
 function CentralAoVivo({ estadoSistema }) {
@@ -400,7 +399,7 @@ function SimuladorAceleradoCompacto() {
 }
 
 export default function PainelMonitoramento({ estadoSistema, aoIrParaAba }) {
-  const [modoTela, definirModoTela] = useState('tempo_real'); // 'tempo_real' | 'demo' | 'api_publica'
+  const [modoTela, definirModoTela] = useState('tempo_real');
 
   return (
     <div className="view-stack">
@@ -411,14 +410,11 @@ export default function PainelMonitoramento({ estadoSistema, aoIrParaAba }) {
         <button type="button" className={`btn btn-sm ${modoTela === 'demo' ? 'btn-primary' : ''}`} onClick={() => definirModoTela('demo')}>
           <FlaskConical size={14} /> Teste acelerado (opcional)
         </button>
-        <button type="button" className={`btn btn-sm ${modoTela === 'api_publica' ? 'btn-primary' : ''}`} onClick={() => definirModoTela('api_publica')}>
-          API pública externa (opcional)
-        </button>
+        <a className="btn btn-sm" href="#inversor-publico">Acompanhar inversor público · Nova York</a>
       </div>
 
       {modoTela === 'tempo_real' && <CentralAoVivo estadoSistema={estadoSistema} />}
       {modoTela === 'demo' && <SimuladorAceleradoCompacto />}
-      {modoTela === 'api_publica' && <PainelFontePublica aoIrParaAba={aoIrParaAba} />}
 
       {aoIrParaAba && <BarraProximoPasso passoAtualNumero={2} aoNavegar={aoIrParaAba} />}
     </div>

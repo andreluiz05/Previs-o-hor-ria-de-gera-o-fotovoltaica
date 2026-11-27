@@ -463,6 +463,26 @@ button.journey-step:hover { border-color: var(--neural-teal); }
 
 .weather-panel { padding: 20px 24px; }
 .monitoring-source-switch { display: flex; flex-wrap: wrap; gap: 8px; }
+.public-live { border-top: 3px solid var(--neural-teal); }
+.public-live-source { font-size: 13px; font-weight: 650; color: var(--text-secondary); }
+.public-live .card-header { align-items: center; flex-wrap: wrap; gap: 12px; }
+.public-live .monitoring-state[data-estado="online"] { background: var(--signal-ok-soft); color: var(--signal-ok); }
+.public-live .monitoring-state[data-estado="atrasado"] { background: var(--solar-amber-soft); color: var(--solar-amber); }
+.public-live .monitoring-state[data-estado="erro"] { background: var(--signal-danger-soft); color: var(--signal-danger); }
+.public-live-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 24px; align-items: start; margin: 24px 0; }
+.public-live-watts { margin: 8px 0 16px; font-size: clamp(38px, 6vw, 76px); line-height: 1.15; letter-spacing: -.045em; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--neural-teal); overflow-wrap: anywhere; }
+.public-live-watts small { font-size: .42em; font-weight: 500; letter-spacing: 0; }
+.public-live-times { display: flex; flex-wrap: wrap; gap: 10px 24px; margin: 0; }
+.public-live-times dt, .public-live-feed th { color: var(--text-secondary); font-size: 12px; font-weight: 500; }
+.public-live-times dd { margin: 4px 0 0; font-size: 14px; font-variant-numeric: tabular-nums; }
+.public-live-feed { padding: 16px; background: var(--bg-subtle); border: 1px solid var(--border-subtle); border-radius: 12px; }
+.public-live-feed .card-title { font-size: 15px; }
+.public-live-feed table { width: 100%; border-collapse: collapse; margin-top: 8px; text-align: left; font-variant-numeric: tabular-nums; }
+.public-live-feed td, .public-live-feed th { padding: 7px 0; }
+.public-live-feed td { font-size: 13px; border-top: 1px solid var(--border-subtle); }
+.public-live-feed td:last-child, .public-live-feed th:last-child { text-align: right; }
+.public-live-feed tbody tr:first-child { color: var(--neural-teal); font-weight: 700; }
+@media(max-width: 720px) { .public-live-grid { grid-template-columns: minmax(0, 1fr); gap: 18px; } }
 .public-source-badge { background: var(--neural-teal-soft); color: var(--neural-teal); }
 .public-disconnected { margin: 16px 0 0; }
 .public-source-forecast .card-subtitle { margin: 10px 0 18px; }

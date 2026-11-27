@@ -226,11 +226,14 @@ class MonitorPublico:
         inicio = fim - timedelta(hours=48)
         with self._db() as db:
             ctl = dict(db.execute('SELECT * FROM controle_publico WHERE id=1').fetchone())
-            last = db.execute('SELECT * FROM leituras_publicas ORDER BY instante DESC LIMIT 1').fetchone()
+            ultimas = [dict(row) for row in db.execute(
+                'SELECT instante, recebido_em, potencia_kw, contador_kwh FROM leituras_publicas ORDER BY instante DESC LIMIT 5'
+            )]
             count = db.execute('SELECT COUNT(*) FROM leituras_publicas').fetchone()[0]
             hours = {r['inicio']: dict(r) for r in db.execute('SELECT * FROM horas_publicas WHERE inicio>=? AND inicio<?', (inicio.isoformat(), fim.isoformat()))}
-        age = max(0, (agora - instante(last['instante'])).total_seconds()) if last else None
-        estado = ('pausado' if not ctl['ativo'] else 'erro' if ctl['erro'] else 'aguardando' if not last
+        ultima = ultimas[0] if ultimas else None
+        age = max(0, (agora - instante(ultima['instante'])).total_seconds()) if ultima else None
+        estado = ('pausado' if not ctl['ativo'] else 'erro' if ctl['erro'] else 'aguardando' if not ultima
                   else 'atrasado' if age > 1200 else 'online')
         serie = []
         for i in range(48):
@@ -240,10 +243,10 @@ class MonitorPublico:
                           'energia_kwh': item['energia_kwh'] if item else None,
                           'qualidade': item['qualidade'] if item else 'sem_leitura',
                           'consultado_em': item['consultado_em'] if item else None})
-        ultima = {k: last[k] for k in ('instante', 'recebido_em', 'potencia_kw', 'contador_kwh')} if last else None
         return {'fonte': FONTE, 'simulado': False, 'ativo': bool(ctl['ativo']), 'estado': estado,
                 'conexao_hardware_local': False, 'em_consulta': self.coleta_lock.locked(),
-                'ultima_leitura': ultima, 'idade_leitura_segundos': round(age) if age is not None else None,
+                'ultima_leitura': ultima, 'leituras_recentes': ultimas,
+                'idade_leitura_segundos': round(age) if age is not None else None,
                 'ultima_tentativa_em': ctl['tentativa'], 'ultima_consulta_sucesso_em': ctl['sucesso'],
                 'historico_consultado_em': ctl['historico'], 'intervalo_consulta_segundos': INTERVALO,
                 'erro': ctl['erro'], 'erro_historico': ctl['erro_historico'],

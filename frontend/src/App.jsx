@@ -1,5 +1,5 @@
 import React, { lazy, Suspense, useCallback, useEffect, useState } from 'react';
-import { LayoutDashboard, Sun, Zap, CloudSun, Activity, PlugZap, ChartNoAxesCombined, Compass, Settings2, AlertTriangle, ArrowUpRight, Menu, X, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Sun, Zap, CloudSun, Activity, PlugZap, Radio, ChartNoAxesCombined, Compass, Settings2, AlertTriangle, ArrowUpRight, Menu, X, ChevronRight } from 'lucide-react';
 import { clienteApi } from './api/clienteApi';
 import CabecalhoEfemerides from './componentes/CabecalhoEfemerides';
 import TrilhaGuiada from './componentes/TrilhaGuiada';
@@ -8,6 +8,7 @@ import { formatarNumero } from './utilitarios/formatadores';
 const PainelResumoInstalacao = lazy(() => import('./componentes/PainelResumoInstalacao'));
 const PainelMinhaUsina = lazy(() => import('./componentes/PainelMinhaUsina'));
 const PainelMonitoramento = lazy(() => import('./componentes/PainelMonitoramento'));
+const PainelFontePublica = lazy(() => import('./componentes/PainelFontePublica'));
 const PainelPrevisaoOperacional = lazy(() => import('./componentes/PainelPrevisaoOperacional'));
 const PainelConsultaComparacao = lazy(() => import('./componentes/PainelConsultaComparacao'));
 const PainelCentralApis = lazy(() => import('./componentes/PainelCentralApis'));
@@ -22,6 +23,7 @@ const ABAS = [
   { id: 'operacional', passo: 3, titulo: 'Previsão 24h', menu: '3. Previsão 24h', descricao: 'Energia e economia esperadas nas próximas horas com o clima real.', Icone: CloudSun, grupo: 'Sua operação' },
   { id: 'consulta', passo: 4, titulo: 'Histórico e saúde', menu: '4. Histórico e saúde', descricao: 'Registre a geração e receba alertas de sujeira nas placas, sombra ou falha elétrica.', Icone: Activity, grupo: 'Sua operação' },
   { id: 'apis', titulo: 'APIs e conexões', menu: '5. APIs e conexões', descricao: 'Veja todas as APIs ativas do projeto, teste a resposta ao vivo e cadastre APIs personalizadas.', Icone: PlugZap, grupo: 'Sua operação' },
+  { id: 'inversor-publico', titulo: 'Monitor do inversor público', menu: 'Inversor público', descricao: 'Medições de uma instalação externa via SolarNetwork. Horário de origem de Nova York.', Icone: Radio, grupo: 'Sua operação' },
   { id: 'benchmark', titulo: 'Comparar algoritmos', menu: 'Comparar algoritmos', descricao: 'Métricas detalhadas dos 7 modelos de previsão.', Icone: ChartNoAxesCombined, grupo: 'Análise e inteligência' },
   { id: 'fisica', titulo: 'Simulador físico "E se?"', menu: 'Simulador físico "E se?"', descricao: 'Teste inclinação, direção e sobrecarga do inversor.', Icone: Compass, grupo: 'Análise e inteligência' },
   { id: 'treino', titulo: 'Calibrar IA', menu: 'Calibrar IA', descricao: 'Retreine as redes neurais para o porte da instalação.', Icone: Settings2, grupo: 'Análise e inteligência' },
@@ -69,6 +71,7 @@ export default function AplicacaoSolarV3() {
       const id = abaDaUrl();
       definirAbaAtiva(id);
       definirMenuAberto(false);
+      window.scrollTo({ top: 0, behavior: 'instant' });
       if (['benchmark', 'fisica', 'treino'].includes(id)) definirAnaliseAberta(true);
     };
     window.addEventListener('hashchange', sincronizar);
@@ -120,7 +123,7 @@ export default function AplicacaoSolarV3() {
 
         <nav style={{ marginTop: 22 }}>
           <div className="nav-group">
-            <div className="nav-group-label">Operação (1 a 5)</div>
+            <div className="nav-group-label">Operação</div>
             {ABAS.filter((item) => item.grupo === 'Sua operação').map(({ id, menu, Icone }) => (
               <a
                 key={id}
@@ -219,6 +222,7 @@ export default function AplicacaoSolarV3() {
                 {abaAtiva === 'resumo' && <PainelResumoInstalacao estadoSistema={estadoSistema} aoIrParaAba={navegar} />}
                 {abaAtiva === 'usina' && <PainelMinhaUsina estadoSistema={estadoSistema} aoSalvarUsina={carregarEstadoSistema} aoIrParaAba={navegar} />}
                 {abaAtiva === 'monitoramento' && <PainelMonitoramento estadoSistema={estadoSistema} aoIrParaAba={navegar} />}
+                {abaAtiva === 'inversor-publico' && <PainelFontePublica aoIrParaAba={navegar} />}
                 {abaAtiva === 'operacional' && <PainelPrevisaoOperacional estadoSistema={estadoSistema} aoAtualizarConfig={carregarEstadoSistema} aoIrParaAba={navegar} />}
                 {abaAtiva === 'consulta' && <PainelConsultaComparacao estadoSistema={estadoSistema} aoIrParaAba={navegar} />}
                 {abaAtiva === 'apis' && <PainelCentralApis estadoSistema={estadoSistema} aoAtualizarConfig={carregarEstadoSistema} aoIrParaAba={navegar} />}

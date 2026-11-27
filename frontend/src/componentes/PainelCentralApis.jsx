@@ -393,6 +393,9 @@ export default function PainelCentralApis({ estadoSistema, aoAtualizarConfig, ao
                         <Zap size={13} /> Usar na usina
                       </button>
                     )}
+                    {api.id === 'solarnetwork-demo-1000' && (
+                      <a href="#inversor-publico" className="btn btn-sm">Acompanhar inversor público</a>
+                    )}
 
                     <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
                       <button type="button" className="mini-preset" onClick={() => alternarAtiva(api)}>

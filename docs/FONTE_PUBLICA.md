@@ -2,7 +2,7 @@
 
 ## Usar agora
 
-Abra **http://127.0.0.1:8000/#monitoramento** e escolha **Fonte pública online**. Use **Conectar API** para habilitar a coleta e **Desconectar API** para interromper as consultas. Quando conectada, a coleta continua no servidor enquanto ele estiver ligado, mesmo que o navegador seja fechado.
+Abra **Inversor público** no menu e clique em **Conectar API**. O primeiro cartão mostra a última potência em watts, o horário da medição em Nova York e em Pernambuco e as cinco medições distintas mais recentes disponíveis. O painel consulta o servidor a cada dez segundos enquanto estiver visível. O servidor consulta a SolarNetwork a cada minuto e continua coletando enquanto estiver ligado, mesmo com o navegador fechado. [Abrir monitor local](http://127.0.0.1:8000/#inversor-publico)
 
 A conexão é somente de leitura. Não exige chave ou cadastro: acessa endpoints públicos da SolarNetwork. O uso pessoal é gratuito conforme as [condições do provedor](https://solarnetwork.net/legal.html); uso comercial precisa ser tratado com o provedor.
 

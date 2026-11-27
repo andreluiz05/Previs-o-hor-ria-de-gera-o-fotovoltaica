@@ -12,14 +12,14 @@ const setValue=async (id,value)=>{await cdp.evaluate(`(()=>{const el=document.ge
 try{
   await cdp.send('Network.enable');
   await cdp.send('Emulation.setDeviceMetricsOverride',{width:1440,height:1080,deviceScaleFactor:1,mobile:false});
-  await cdp.send('Page.navigate',{url:base+'/#monitoramento'});
+  await cdp.send('Page.navigate',{url:base+'/#inversor-publico'});
   await cdp.wait('Boolean(document.querySelector(".public-source-forecast"))&&Boolean(document.querySelector(".public-source-view button.btn-primary:not(:disabled)"))||Boolean(document.querySelector(".public-source-view button.btn:not(.btn-primary):not(:disabled)"))');
   if(!(await (await fetch(base+'/api/fonte-publica/status')).json()).ativo){await click('Conectar API');await cdp.wait('document.querySelector(".public-source-view button.btn-primary").disabled&&document.querySelector(".public-source-view").getAttribute("aria-busy")==="false"');}
   await click('Desconectar API');
   await cdp.wait('Boolean(document.querySelector(".public-disconnected"))&&document.querySelector(".public-source-view").getAttribute("aria-busy")==="false"');
   const desligada=await (await fetch(base+'/api/fonte-publica/status')).json();
   check(!desligada.ativo,'Desconectar API interrompe a coleta no servidor');
-  check(await cdp.evaluate('document.querySelector(".monitoring-badge").innerText.includes("DESCONECTADA")&&document.querySelector(".public-disconnected").innerText.includes("histórico permanece")'),'Estado desconectado e preservação do histórico explícitos');
+  check(await cdp.evaluate('document.querySelector(".monitoring-state").dataset.estado==="pausado"&&document.querySelector(".public-disconnected").innerText.includes("histórico permanece")'),'Estado desconectado e preservação do histórico explícitos');
   const calls=cdp.events.filter(e=>e.method==='Network.requestWillBeSent').map(e=>e.params.request.url);
   check(calls.some(url=>url.endsWith('/api/fonte-publica/desconectar')),'Botão utiliza o endpoint de desconexão');
   await cdp.send('Page.reload');
@@ -47,7 +47,7 @@ try{
   check(!final.ativo&&final.ultima_tentativa_em===desligada.ultima_tentativa_em,'Previsão não reativa nem consulta a SolarNetwork');
   check(final.total_leituras===desligada.total_leituras,'Histórico da fonte pública preservado durante a demonstração');
   await cdp.screenshot('artifacts/previsao-com-api-publica-desconectada.png');
-  await cdp.evaluate('location.hash="monitoramento"');
+  await cdp.evaluate('location.hash="inversor-publico"');
   await cdp.wait('Boolean(document.querySelector(".public-disconnected"))');
   await click('Conectar API');
   await cdp.wait('!document.querySelector(".public-disconnected")&&document.querySelector(".public-source-view").getAttribute("aria-busy")==="false"');

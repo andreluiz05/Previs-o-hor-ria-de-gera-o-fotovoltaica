@@ -68,6 +68,19 @@ class FontePublicaTests(unittest.TestCase):
         self.monitor.iniciar()
         self.assertEqual(self.cliente.ultima.call_count, 2)
 
+    def test_monitor_lista_cinco_medicoes_distintas_por_horario_da_fonte(self):
+        self.assertEqual(self.monitor.estado()['leituras_recentes'], [])
+        self.monitor.iniciar()
+        for watts in (100, 200, 300, 400, 500, None):
+            self.cliente.ultima.return_value = self.row(self.now.isoformat(), watts=watts, wattHours=1234)
+            self.avancar()
+        self.avancar()
+        state = self.monitor.pausar()
+        recentes = state['leituras_recentes']
+        self.assertEqual([x['potencia_kw'] for x in recentes], [None, .5, .4, .3, .2])
+        self.assertEqual(state['ultima_leitura'], recentes[0])
+        self.assertEqual(len({x['instante'] for x in recentes}), 5)
+
     def test_leitura_atrasada_e_diferente_de_potencia_zero(self):
         self.cliente.ultima.return_value = self.row('2026-11-27T12:30:00Z', watts=0, wattHours=1)
         self.assertEqual(self.monitor.iniciar()['estado'], 'online')

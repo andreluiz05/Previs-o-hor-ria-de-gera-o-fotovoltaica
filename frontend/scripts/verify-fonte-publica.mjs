@@ -9,14 +9,18 @@ try {
   await cdp.send('Network.enable');
   await cdp.send('Emulation.setDeviceMetricsOverride',{width:1440,height:1080,deviceScaleFactor:1,mobile:false});
   await cdp.send('Page.navigate',{url:'http://127.0.0.1:8000/#monitoramento'});
+  await cdp.wait('Boolean(document.querySelector(".monitoring-source-switch a"))');
+  await cdp.evaluate('document.querySelector(".monitoring-source-switch a").click()');
   await cdp.wait('Boolean(document.querySelector(".public-source-chart .recharts-surface"))',60000);
-  check(await cdp.evaluate('document.querySelector(".monitoring-badge").innerText.includes("DADOS ONLINE")'), 'Fonte pública é a origem inicial e está identificada');
-  check(await cdp.evaluate('!document.querySelector(".plant-overview")&&document.querySelector(".public-source-context").innerText.includes("não representam sua casa")'), 'Cadastro de Igarassu não aparece como origem das medições externas');
+  check(await cdp.evaluate('location.hash==="#inversor-publico" && document.querySelector(".public-live-source").innerText.includes("SolarNetwork")'), 'Atalho de Tempo real abre o monitor identificado');
+  check(await cdp.evaluate('document.querySelector(".page-description").innerText.includes("instalação externa")'), 'Origem externa indicada');
   check(await cdp.evaluate('document.querySelector(".public-source-attribution").innerText.includes("/0145/S1/G1/INV/2")'), 'Identificador verificável da fonte publicado na tela');
-  check(await cdp.evaluate('document.querySelector(".public-source-details").innerText.includes("Brasil")&&document.querySelector(".public-source-details").innerText.includes("Nova York")'), 'Horário de origem e horário do Brasil estão explícitos');
-  check(await cdp.evaluate('document.querySelectorAll(".public-source-kpis .card").length===3'), 'Potência, energia no período e contador têm indicadores separados');
+  check(await cdp.evaluate('document.querySelector(".public-live-times").innerText.includes("Pernambuco")&&document.querySelector(".public-live-times").innerText.includes("Nova York")'), 'Horários de origem e de Pernambuco explícitos');
+  check(await cdp.evaluate('document.querySelectorAll(".public-source-kpis .card").length===2 && !!document.querySelector(".public-live-watts")'), 'Potência, energia no período e contador têm indicadores separados');
   const api=await (await fetch('http://127.0.0.1:8000/api/fonte-publica/status')).json();
   check(api.ativo&&api.erro===null&&api.horas_com_dados>0, 'Interface usa coleta online e histórico recebidos pela API real');
+  check(await cdp.evaluate('document.querySelector(".public-live-times time").dateTime')===api.ultima_leitura.instante,'Monitor mostra o instante publicado pelo inversor');
+  check(await cdp.evaluate('document.querySelectorAll(".public-live-feed tbody tr").length')===api.leituras_recentes.length,'Lista exibe as medições arquivadas');
   if(api.estado==='atrasado') check(await cdp.evaluate('document.querySelector(".monitoring-state").innerText.includes("atrasada")'), 'Leitura antiga não é anunciada como atual');
   await cdp.screenshot('artifacts/fonte-publica-desktop.png');
   await click('Desconectar API');
@@ -35,17 +39,22 @@ try {
   // Simula apenas a falha do serviço na resposta de status; não altera o banco nem o coletor.
   const last=await (await fetch('http://127.0.0.1:8000/api/fonte-publica/status')).json();
   await cdp.send('Fetch.enable',{patterns:[{urlPattern:'*/api/fonte-publica/status*',requestStage:'Request'}]});
+  let respostaTeste={...last,estado:'erro',erro:'Falha externa verificada. Nenhum dado será simulado.'};
   const fulfill=async event=>{
     const m=JSON.parse(event.data);
     if(m.method!=='Fetch.requestPaused')return;
-    await cdp.send('Fetch.fulfillRequest',{requestId:m.params.requestId,responseCode:200,responseHeaders:[{name:'Content-Type',value:'application/json'}],body:Buffer.from(JSON.stringify({...last,estado:'erro',erro:'Falha externa verificada. Nenhum dado será simulado.'})).toString('base64')});
+    await cdp.send('Fetch.fulfillRequest',{requestId:m.params.requestId,responseCode:200,responseHeaders:[{name:'Content-Type',value:'application/json'}],body:Buffer.from(JSON.stringify(respostaTeste)).toString('base64')});
   };
   cdp.ws.addEventListener('message',fulfill);
   await cdp.wait('document.querySelector(".notice-banner.danger")?.innerText.includes("Falha externa verificada")',20000);
-  check(await cdp.evaluate('Boolean(document.querySelector(".public-source-chart .recharts-surface"))&&document.querySelector(".monitoring-badge").innerText.includes("DADOS ONLINE")'), 'Falha externa mantém os últimos dados e o aviso sem trocar por simulador');
+  check(await cdp.evaluate('Boolean(document.querySelector(".public-source-chart .recharts-surface"))&&document.querySelector(".monitoring-state").dataset.estado==="erro"'), 'Falha externa mantém os últimos dados com aviso de erro');
+  const novaMedicao={...last.ultima_leitura,instante:new Date().toISOString(),potencia_kw:0};
+  respostaTeste={...last,estado:'online',erro:null,ultima_leitura:novaMedicao,leituras_recentes:[novaMedicao,...last.leituras_recentes].slice(0,5)};
+  await cdp.wait(`document.querySelector(".public-live-times time").dateTime===${JSON.stringify(novaMedicao.instante)}`,20000);
+  check(await cdp.evaluate('document.querySelector(".public-live-watts").innerText.trim()==="0 W" && document.querySelector(".public-live-feed tbody tr td:last-child").innerText==="0 W"'),'Nova amostra aparece automaticamente e preserva potência zero (resposta de teste)');
   await cdp.send('Fetch.disable');
   cdp.ws.removeEventListener('message',fulfill);
-  await cdp.wait('!document.querySelector(".notice-banner.danger")',20000);
+  await cdp.wait(`document.querySelector(".public-live-times time").dateTime!==${JSON.stringify(novaMedicao.instante)}`,20000);
   check(true,'Interface recupera a conexão sem recarregar');
   for(const width of [375,768,1440]) {
     await cdp.send('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:false});
@@ -59,14 +68,9 @@ try {
     await cdp.evaluate('document.querySelector(".public-source-hourly").open=false;scrollTo(0,0)');
     if(width===375)await cdp.screenshot('artifacts/fonte-publica-mobile.png');
   }
-  await click('Simulador');
-  await cdp.wait('Boolean(document.querySelector(".monitoring-view"))');
-  check(await cdp.evaluate('document.querySelector(".monitoring-badge").innerText.includes("DADOS FICTÍCIOS")&&!document.querySelector(".public-source-kpis")'), 'Simulador continua disponível com outra origem e outro histórico');
-  await click('Fonte pública online');
-  await cdp.wait('Boolean(document.querySelector(".public-source-chart .recharts-surface"))');
   await cdp.send('Page.reload');
   await cdp.wait('Boolean(document.querySelector(".public-source-view"))');
-  check(await cdp.evaluate('localStorage.getItem("helionta-monitor-origem")==="publica"'), 'Escolha da fonte permanece ao recarregar');
+  check(await cdp.evaluate('location.hash==="#inversor-publico"'), 'Link direto conserva o monitor após recarregar');
   check(cdp.events.filter(e=>e.method==='Runtime.exceptionThrown').length===0,'Nenhuma exceção JavaScript no fluxo online');
 }catch(e){error=e.message;process.exitCode=1;await cdp.screenshot('artifacts/fonte-publica-falha.png').catch(()=>{});}
 finally{writeFileSync('artifacts/fonte-publica-browser.json',JSON.stringify({checks,error},null,2));console.log(JSON.stringify({passed:checks.filter(x=>x.passed).length,total:checks.length,error}));await close();}
