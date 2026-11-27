@@ -1,0 +1,51 @@
+\documentclass[12pt]{article}
+
+\usepackage{sbc-template}
+
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{url}
+\usepackage{hyperref}
+
+\usepackage[brazil]{babel}   
+\usepackage[utf8]{inputenc}
+
+% \usepackage[a4paper,top=1.1cm,bottom=2.1cm,left=2.5cm,right=2.5cm]{geometry}
+
+\usepackage{lmodern,booktabs,tabularx,array,caption,hyperref,microtype,placeins,titling}
+
+\setlength{\droptitle}{-1.5cm}
+\hypersetup{hidelinks}
+\urlstyle{same}
+\setlength{\parindent}{1.25cm}
+\setlength{\parskip}{1pt}
+\setlength{\emergencystretch}{2em}
+\captionsetup{font=small,labelfont=bf}
+
+\graphicspath{{./images/}}
+
+\sloppy
+
+\input{sections/title.tex}
+
+\begin{document}
+\maketitle
+% \input{sections/abstract.tex}
+\input{sections/resumo.tex}
+\input{sections/01-introducao.tex}
+\input{sections/05-metodologia.tex}
+\input{sections/06-resultados.tex}
+\input{sections/07-conclusao.tex}
+
+\section{Limitações e trabalhos futuros}
+A principal limitação é o uso de dados sintéticos, construídos por um processo que compartilha relações com a referência física. A meteorologia simulada não representa fielmente os erros de uma previsão operacional. Além disso, o período de 120 dias não cobre todas as estações, e o modelo físico não representa em detalhe sombreamento, falhas, indisponibilidades ou curvas reais de eficiência dos inversores. Não houve experimento isolando o efeito de cada ajuste de treinamento.
+
+Para uma validação em Pernambuco, recomenda-se utilizar registros horários de geração AC de uma instalação real, características técnicas dos equipamentos e previsões meteorológicas emitidas antes da hora-alvo. O ONS \cite{ons} e o Open-Meteo \cite{meteo} são fontes candidatas, sujeitas à verificação de localização, unidade, granularidade e disponibilidade. O download das bases reais não foi concluído neste projeto. Também se recomenda utilizar um conjunto de teste independente, incluindo diferentes estações e condições adversas.
+
+% \section*{Reprodutibilidade}
+% O pacote V3 contém o código Python, a configuração dos equipamentos, os CSVs de entrada e de resultados, os gráficos e os pesos salvos do LSTM residual. Para reproduzir o experimento após instalar as dependências, executar:\par\noindent\texttt{python solar.py --demo --epocas 40 --seeds 42 123 2026}.
+
+\bibliographystyle{IEEEtran}
+\bibliography{referencias}
+
+\end{document}
