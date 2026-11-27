@@ -22,6 +22,7 @@ from urllib.parse import urlparse
 import math
 import requests
 
+from clima import consultar_clima_agora_preciso
 from solar_engine import carregar_config_ativa, salvar_config_ativa
 
 TZ_BR = timezone(timedelta(hours=-3))
@@ -255,13 +256,39 @@ class CentralApisProjeto:
         modo_inv = cfg.get("modo_conexao_inversor", "api_inversor")
         url_inv = cfg.get("url_api_inversor") or URL_SOLARNETWORK_EXEMPLO
 
+        prov_clima = cfg.get("provedor_clima", "accuweather")
+        tem_chave_aw = bool(cfg.get("chave_api_accuweather"))
+
         apis_nativas = [
             {
-                "id": "open_meteo_forecast",
-                "nome": "Open-Meteo Forecast API",
-                "papel": "Clima em tempo real e previsão horária de 24h",
+                "id": "clima_principal",
+                "nome": (
+                    "AccuWeather Core Weather API"
+                    if prov_clima == "accuweather" and tem_chave_aw
+                    else "AccuWeather / Estação Terrestre Real (METAR)"
+                    if prov_clima in ("accuweather", "estacao_local")
+                    else "Open-Meteo Forecast API (Grade Terrestre)"
+                ),
+                "papel": (
+                    "Temperatura oficial hiperlocal + irradiação solar da usina"
+                    if prov_clima == "accuweather" and tem_chave_aw
+                    else "Termômetro real da estação terrestre local + irradiação solar horária (adicione chave AccuWeather no Passo 1 se desejar)"
+                    if prov_clima == "accuweather"
+                    else "Temperatura real de estação terrestre + irradiação solar"
+                    if prov_clima == "estacao_local"
+                    else "Clima em tempo real e previsão horária de 24h"
+                ),
                 "categoria": "clima",
-                "url": f"https://api.open-meteo.com/v1/forecast?latitude={cfg['latitude']}&longitude={cfg['longitude']}&hourly=shortwave_radiation,temperature_2m&forecast_days=1",
+                "url": f"https://wttr.in/{cfg['latitude']},{cfg['longitude']}?format=j1",
+                "ativa": True,
+                "editavel": False,
+            },
+            {
+                "id": "open_meteo_forecast",
+                "nome": "Irradiação Solar Horária (Land Grid)",
+                "papel": "Componentes solares GHI, DNI e DHI em célula terrestre para cálculo das placas",
+                "categoria": "clima",
+                "url": f"https://api.open-meteo.com/v1/forecast?latitude={cfg['latitude']}&longitude={cfg['longitude']}&hourly=shortwave_radiation,temperature_2m&cell_selection=land&forecast_days=1",
                 "ativa": True,
                 "editavel": False,
             },
@@ -330,10 +357,54 @@ class CentralApisProjeto:
         ]
 
         return {
+            "local_clima_ativo": {
+                "cidade": cfg["cidade"],
+                "latitude": cfg["latitude"],
+                "longitude": cfg["longitude"],
+            },
             "modelos_conector": MODELOS_CONECTOR_INVERSOR,
             "apis_nativas": apis_nativas,
             "apis_personalizadas": personalizadas,
             "total_ativas": sum(1 for a in apis_nativas if a["ativa"]) + sum(1 for p in personalizadas if p["ativa"]),
+        }
+
+    def atualizar_local_clima(
+        self,
+        cidade: str,
+        latitude: float,
+        longitude: float,
+        pasta_saida: Path,
+        provedor_clima: str | None = None,
+        chave_api_accuweather: str | None = None,
+    ) -> dict[str, Any]:
+        """Altera endereço/provedor da API de Clima (AccuWeather / Estação Real / Open-Meteo) e retorna leitura atual."""
+        lat_f = float(latitude)
+        lon_f = float(longitude)
+        if not (-90.0 <= lat_f <= 90.0 and -180.0 <= lon_f <= 180.0):
+            raise ValueError("Coordenadas geográficas inválidas para a API de Clima.")
+
+        nome_local = (cidade or "").strip() or f"{lat_f:.4f}, {lon_f:.4f}"
+        cfg = carregar_config_ativa(pasta_saida)
+        cfg["cidade"] = nome_local[:140]
+        cfg["latitude"] = round(lat_f, 5)
+        cfg["longitude"] = round(lon_f, 5)
+        if provedor_clima:
+            cfg["provedor_clima"] = provedor_clima
+        if chave_api_accuweather is not None and not str(chave_api_accuweather).startswith("••••"):
+            cfg["chave_api_accuweather"] = str(chave_api_accuweather).strip()
+        nova_cfg = salvar_config_ativa(pasta_saida, cfg)
+
+        clima_atual = consultar_clima_agora_preciso(
+            latitude=nova_cfg["latitude"],
+            longitude=nova_cfg["longitude"],
+            provedor_clima=nova_cfg.get("provedor_clima", "accuweather"),
+            chave_accuweather=nova_cfg.get("chave_api_accuweather", ""),
+        )
+
+        return {
+            "config": nova_cfg,
+            "clima_atual": clima_atual,
+            "central": self.listar_tudo(pasta_saida),
         }
 
     def adicionar_personalizada(

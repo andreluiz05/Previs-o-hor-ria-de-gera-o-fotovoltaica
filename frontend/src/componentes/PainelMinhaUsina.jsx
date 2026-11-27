@@ -6,7 +6,7 @@ import {
   CheckCircle2 as IconeSucesso,
   ExternalLink as IconeLinkExterno,
   Layers as IconeCamadasMapa,
-  PlugZap as IconeConexao,
+  CloudSun as IconeClima,
   RefreshCw as IconeTestar,
 } from 'lucide-react';
 import { clienteApi } from '../api/clienteApi';
@@ -106,6 +106,8 @@ export default function PainelMinhaUsina({ estadoSistema, aoSalvarUsina, aoIrPar
     token_api_inversor: '',
     campo_potencia_json: 'data.results.0.watts',
     unidade_potencia_api: 'W',
+    provedor_clima: 'accuweather',
+    chave_api_accuweather: '',
   });
 
   const [termoCidade, definirTermoCidade] = useState('');
@@ -116,6 +118,11 @@ export default function PainelMinhaUsina({ estadoSistema, aoSalvarUsina, aoIrPar
   const [coordsMapa, definirCoordsMapa] = useState({ lat: -7.8342, lon: -34.9064 });
   const [testandoApi, definirTestandoApi] = useState(false);
   const [resultadoTesteApi, definirResultadoTesteApi] = useState(null);
+  const [termoClima, definirTermoClima] = useState('');
+  const [enderecosClima, definirEnderecosClima] = useState([]);
+  const [buscandoClima, definirBuscandoClima] = useState(false);
+  const [testandoClima, definirTestandoClima] = useState(false);
+  const [resultadoClima, definirResultadoClima] = useState(null);
   const [salvando, definirSalvando] = useState(false);
   const [erroSalvar, definirErroSalvar] = useState('');
   const [salvoOk, definirSalvoOk] = useState(false);
@@ -166,7 +173,57 @@ export default function PainelMinhaUsina({ estadoSistema, aoSalvarUsina, aoIrPar
     }));
     definirCoordsMapa({ lat: Number(item.latitude), lon: Number(item.longitude) });
     definirCidadesEncontradas([]);
+    definirEnderecosClima([]);
     definirTermoCidade('');
+    definirTermoClima('');
+    definirResultadoClima(null);
+  };
+
+  const buscarEnderecoNaApiClima = async () => {
+    if (!termoClima.trim()) return;
+    definirBuscandoClima(true);
+    try {
+      const resp = await clienteApi.pesquisarCidades(termoClima);
+      definirEnderecosClima(resp.resultados || []);
+    } catch {
+      definirEnderecosClima([]);
+    } finally {
+      definirBuscandoClima(false);
+    }
+  };
+
+  const testarApiDeClimaNoEndereco = async (localCustom) => {
+    const alvo = localCustom || {
+      cidade: formulario.cidade,
+      latitude: formulario.latitude,
+      longitude: formulario.longitude,
+    };
+    definirTestandoClima(true);
+    try {
+      const resp = await clienteApi.atualizarLocalApiClima({
+        cidade: alvo.cidade,
+        latitude: Number(alvo.latitude),
+        longitude: Number(alvo.longitude),
+        provedor_clima: formulario.provedor_clima || 'accuweather',
+        chave_api_accuweather: formulario.chave_api_accuweather || '',
+      });
+      definirFormulario((atual) => ({
+        ...atual,
+        cidade: resp.config.cidade,
+        latitude: resp.config.latitude,
+        longitude: resp.config.longitude,
+        provedor_clima: resp.config.provedor_clima,
+      }));
+      definirCoordsMapa({ lat: Number(resp.config.latitude), lon: Number(resp.config.longitude) });
+      definirResultadoClima(resp.clima_atual || { ok: false });
+      definirEnderecosClima([]);
+      definirTermoClima('');
+      if (aoSalvarUsina) await aoSalvarUsina();
+    } catch {
+      definirResultadoClima({ ok: false });
+    } finally {
+      definirTestandoClima(false);
+    }
   };
 
   const testarConexaoInversor = async () => {
@@ -235,13 +292,19 @@ export default function PainelMinhaUsina({ estadoSistema, aoSalvarUsina, aoIrPar
         <div className="split-equal" style={{ alignItems: 'start' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div className="field-group">
-              <label className="field-label" htmlFor="busca-cidade">Cidade da usina</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <label className="field-label" htmlFor="busca-cidade">Endereço, bairro ou cidade da usina</label>
+                <span className="selected-address-pill" title="Endereço ativo no Google Maps e na API de Clima">
+                  <IconeMapa size={12} color="var(--neural-teal)" />
+                  <strong>{formulario.cidade}</strong>
+                </span>
+              </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <input
                   id="busca-cidade"
                   className="input"
                   style={{ flex: 1 }}
-                  placeholder="Buscar outra cidade (ex.: Recife, São Paulo)…"
+                  placeholder="Digite rua, bairro, CEP ou cidade (ex.: Av. Boa Viagem, Recife)…"
                   value={termoCidade}
                   onChange={(e) => definirTermoCidade(e.target.value)}
                   onKeyDown={(e) => {
@@ -389,10 +452,10 @@ export default function PainelMinhaUsina({ estadoSistema, aoSalvarUsina, aoIrPar
               }}
             >
               <div className="mode-choice-top">
-                <strong>Clima + Manual</strong>
+                <strong>API de Clima + Manual</strong>
                 <span className="mode-tag">Sem API de inversor</span>
               </div>
-              <p>Calcula tudo pelo sol ao vivo da sua cidade; você digita os kWh gerados quando quiser comparar.</p>
+              <p>Usa AccuWeather / Estação Terrestre Real no endereço do mapa; você lança os kWh quando quiser comparar.</p>
             </button>
 
             <button
@@ -428,12 +491,162 @@ export default function PainelMinhaUsina({ estadoSistema, aoSalvarUsina, aoIrPar
           </div>
 
           {formulario.modo_conexao_inversor === 'manual' && (
-            <div className="mode-explain-strip">
-              <span><strong>Tempo real:</strong> estima kW agora pelo sol atual</span>
-              <span>·</span>
-              <span><strong>Previsão 24h:</strong> 100% ativa via Open-Meteo</span>
-              <span>·</span>
-              <span><strong>Saúde das placas:</strong> basta lançar o kWh do dia ou planilha</span>
+            <div className="mode-config-inline">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                <span style={{ fontSize: 12.5, display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  <IconeClima size={15} color="var(--neural-teal)" />
+                  <strong>Fonte de Clima</strong> em <strong>{formulario.cidade}</strong>
+                  <span className="mono" style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                    ({Number(formulario.latitude).toFixed(4)}, {Number(formulario.longitude).toFixed(4)})
+                  </span>
+                </span>
+
+                <button
+                  type="button"
+                  className="btn btn-sm btn-primary"
+                  disabled={testandoClima}
+                  onClick={() => testarApiDeClimaNoEndereco()}
+                >
+                  <IconeTestar size={13} /> {testandoClima ? 'Consultando clima…' : 'Testar clima neste endereço'}
+                </button>
+              </div>
+
+              <div className="mode-config-row">
+                <select
+                  aria-label="Provedor da API de Clima"
+                  className="select"
+                  style={{ flex: '1 1 240px', fontSize: 12.5 }}
+                  value={formulario.provedor_clima || 'accuweather'}
+                  onChange={(e) => {
+                    definirFormulario((atual) => ({ ...atual, provedor_clima: e.target.value }));
+                    definirResultadoClima(null);
+                  }}
+                >
+                  <option value="accuweather">AccuWeather API (Hiperlocal + Termômetro Real)</option>
+                  <option value="estacao_local">Estação Meteorológica Real (METAR · Sem chave)</option>
+                  <option value="open_meteo">Open-Meteo Satélite (Grade Terrestre)</option>
+                </select>
+
+                {(formulario.provedor_clima || 'accuweather') === 'accuweather' && (
+                  <input
+                    aria-label="API Key da AccuWeather"
+                    type="password"
+                    className="input mono"
+                    style={{ flex: '1.3 1 220px', fontSize: 12 }}
+                    placeholder="API Key AccuWeather (opcional — s/ chave usa Estação Real 30°C)"
+                    value={formulario.chave_api_accuweather || ''}
+                    onChange={(e) => definirFormulario((atual) => ({ ...atual, chave_api_accuweather: e.target.value }))}
+                  />
+                )}
+              </div>
+
+              {(formulario.provedor_clima || 'accuweather') === 'accuweather' && !formulario.chave_api_accuweather && (
+                <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
+                  <span>
+                    Sem chave preenchida, o sistema usa automaticamente a <strong>Estação Meteorológica Terrestre Real</strong> (que mede a temperatura real em terra, sem distorção marítima).
+                  </span>
+                  <a href="https://developer.accuweather.com/" target="_blank" rel="noreferrer" style={{ color: 'var(--neural-teal)', fontWeight: 600 }}>
+                    Gerar API Key grátis na AccuWeather ↗
+                  </a>
+                </div>
+              )}
+
+              <div className="mode-config-row">
+                <input
+                  aria-label="Escolher outro endereço na API de Clima"
+                  className="input"
+                  style={{ flex: '2 1 280px', fontSize: 12.5 }}
+                  placeholder="Mudar endereço da API de Clima (rua, bairro, CEP ou cidade — igual ao Google Maps)…"
+                  value={termoClima}
+                  onChange={(e) => definirTermoClima(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      buscarEnderecoNaApiClima();
+                    }
+                  }}
+                />
+                <button type="button" className="btn" disabled={buscandoClima || !termoClima.trim()} onClick={buscarEnderecoNaApiClima}>
+                  <IconeBusca size={14} /> {buscandoClima ? 'Buscando…' : 'Buscar endereço'}
+                </button>
+              </div>
+
+              {enderecosClima.length > 0 && (
+                <div className="city-dropdown" style={{ margin: 0 }}>
+                  {enderecosClima.map((cid, idx) => {
+                    const nomeCompleto = cid.estado ? `${cid.nome}, ${cid.estado}` : cid.nome;
+                    return (
+                      <button
+                        key={`clima-${cid.latitude}-${idx}`}
+                        type="button"
+                        className="city-option"
+                        onClick={() =>
+                          testarApiDeClimaNoEndereco({
+                            cidade: nomeCompleto,
+                            latitude: cid.latitude,
+                            longitude: cid.longitude,
+                          })
+                        }
+                      >
+                        <span>
+                          <strong>{cid.nome}</strong> {cid.estado ? `— ${cid.estado}` : ''}
+                        </span>
+                        <span className="mono" style={{ color: 'var(--neural-teal)', fontSize: 11 }}>
+                          Usar no Mapa e Clima
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className="quick-places-row">
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Endereços rápidos:</span>
+                {[
+                  { rotulo: 'Igarassu, PE', cidade: 'Igarassu, Pernambuco', latitude: -7.8342, longitude: -34.9064 },
+                  { rotulo: 'Boa Viagem, Recife', cidade: 'Boa Viagem, Recife - PE', latitude: -8.1195, longitude: -34.8988 },
+                  { rotulo: 'Petrolina, PE', cidade: 'Petrolina, Pernambuco', latitude: -9.3891, longitude: -40.503 },
+                  { rotulo: 'Av. Paulista, SP', cidade: 'Avenida Paulista, São Paulo - SP', latitude: -23.5614, longitude: -46.6559 },
+                ].map((loc) => (
+                  <button
+                    key={loc.rotulo}
+                    type="button"
+                    className="mini-preset"
+                    disabled={testandoClima}
+                    onClick={() => testarApiDeClimaNoEndereco(loc)}
+                  >
+                    {loc.rotulo}
+                  </button>
+                ))}
+              </div>
+
+              {resultadoClima?.ok && (
+                <div className="api-test-result is-ok" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 14px', alignItems: 'center' }}>
+                    <span>✓ {resultadoClima.fonte || 'Clima conectado'} ({resultadoClima.latencia_ms} ms)</span>
+                    <span>
+                      Temperatura: <strong>{formatarNumero(resultadoClima.temperatura_c, 1)} °C</strong>
+                      {resultadoClima.sensacao_c !== null && resultadoClima.sensacao_c !== undefined
+                        ? ` (Sensação ${formatarNumero(resultadoClima.sensacao_c, 0)} °C)`
+                        : ''}
+                    </span>
+                    <span>Sol agora: <strong>{formatarNumero(resultadoClima.irradiancia_wm2, 0)} W/m²</strong></span>
+                    <span>Nuvens: <strong>{formatarNumero(resultadoClima.nuvens_pct, 0)}%</strong></span>
+                    <span>Vento: <strong>{formatarNumero(resultadoClima.vento_kmh, 1)} km/h</strong></span>
+                  </div>
+                  {resultadoClima.aviso_chave && (
+                    <span style={{ fontSize: 11, fontWeight: 500, opacity: 0.9 }}>{resultadoClima.aviso_chave}</span>
+                  )}
+                </div>
+              )}
+
+              <div className="mode-explain-strip" style={{ marginTop: 2 }}>
+                <span><strong>Tempo real:</strong> calcula kW agora pelo clima deste endereço</span>
+                <span>·</span>
+                <span><strong>Previsão 24h:</strong> usa o sol previsto deste local</span>
+                <span>·</span>
+                <span><strong>Saúde das placas:</strong> compara seu kWh lançado com o clima daqui</span>
+              </div>
             </div>
           )}
 

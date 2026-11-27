@@ -220,7 +220,7 @@ export default function AplicacaoSolarV3() {
               <Suspense fallback={<div className="card chart-loading" role="status">Carregando tela…</div>}>
                 {abaAtiva === 'usina' && <PainelMinhaUsina estadoSistema={estadoSistema} aoSalvarUsina={carregarEstadoSistema} aoIrParaAba={navegar} />}
                 {abaAtiva === 'monitoramento' && <PainelMonitoramento estadoSistema={estadoSistema} aoIrParaAba={navegar} />}
-                {abaAtiva === 'operacional' && <PainelPrevisaoOperacional estadoSistema={estadoSistema} aoIrParaAba={navegar} />}
+                {abaAtiva === 'operacional' && <PainelPrevisaoOperacional estadoSistema={estadoSistema} aoAtualizarConfig={carregarEstadoSistema} aoIrParaAba={navegar} />}
                 {abaAtiva === 'consulta' && <PainelConsultaComparacao estadoSistema={estadoSistema} aoIrParaAba={navegar} />}
                 {abaAtiva === 'apis' && <PainelCentralApis estadoSistema={estadoSistema} aoAtualizarConfig={carregarEstadoSistema} aoIrParaAba={navegar} />}
                 {abaAtiva === 'benchmark' && <PainelBenchmark estadoSistema={estadoSistema} />}

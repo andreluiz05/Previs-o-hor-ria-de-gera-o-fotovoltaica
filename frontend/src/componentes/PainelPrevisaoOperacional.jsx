@@ -13,16 +13,19 @@ import {
 import {
   AlertTriangle as IconeAviso,
   Download as IconeDownload,
+  MapPin as IconeMapa,
   RefreshCw as IconeAtualizar,
   Sun as IconeSol,
 } from 'lucide-react';
 import { clienteApi } from '../api/clienteApi';
 import { formatarNumero } from '../utilitarios/formatadores';
 import { BarraProximoPasso } from './TrilhaGuiada';
+import SeletorLocalMapaClima from './SeletorLocalMapaClima';
 
-export default function PainelPrevisaoOperacional({ estadoSistema, aoIrParaAba }) {
+export default function PainelPrevisaoOperacional({ estadoSistema, aoAtualizarConfig, aoIrParaAba }) {
   const cfgAtiva = estadoSistema?.config || {};
   const [horizonteHoras, definirHorizonteHoras] = useState(24);
+  const [mostrarMapaClima, definirMostrarMapaClima] = useState(false);
   const [consultando, definirConsultando] = useState(false);
   const [mensagemErro, definirMensagemErro] = useState('');
   const [resultadoPrevisao, definirResultadoPrevisao] = useState(null);
@@ -139,6 +142,13 @@ export default function PainelPrevisaoOperacional({ estadoSistema, aoIrParaAba }
               </div>
 
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  className={`btn btn-sm ${mostrarMapaClima ? 'btn-primary' : ''}`}
+                  onClick={() => definirMostrarMapaClima((v) => !v)}
+                >
+                  <IconeMapa size={14} /> {mostrarMapaClima ? 'Fechar mapa' : 'Mudar endereço / local'}
+                </button>
                 <select
                   aria-label="Período da previsão"
                   className="select"
@@ -162,6 +172,20 @@ export default function PainelPrevisaoOperacional({ estadoSistema, aoIrParaAba }
               </div>
             </div>
 
+            {mostrarMapaClima && (
+              <div style={{ marginBottom: 18 }}>
+                <SeletorLocalMapaClima
+                  estadoSistema={estadoSistema}
+                  alturaMapa={230}
+                  titulo="Mudar endereço da previsão meteorológica"
+                  subtitulo="Escolha qualquer endereço ou cidade no Google Maps para recalcular a previsão de 24h."
+                  aoLocalAtualizado={async () => {
+                    if (aoAtualizarConfig) await aoAtualizarConfig();
+                  }}
+                />
+              </div>
+            )}
+
             <div className="chart-container">
               <ContainerResponsivo>
                 <GraficoComposto accessibilityLayer data={resultadoPrevisao.serie} margin={{ top: 10, right: 16, left: -15, bottom: 5 }}>
@@ -176,8 +200,8 @@ export default function PainelPrevisaoOperacional({ estadoSistema, aoIrParaAba }
                   <EixoY stroke="var(--text-muted)" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
                   <DicaFlutuante formatter={(valor, nome) => [`${formatarNumero(valor, 2)} kWh`, nome]} contentStyle={{ backgroundColor: 'var(--tooltip-bg)', borderColor: 'var(--border-subtle)', borderRadius: 10, fontSize: 12 }} />
                   <Legenda verticalAlign="top" align="right" iconType="plainline" wrapperStyle={{ paddingBottom: 16 }} />
-                  <AreaGrafico type="monotone" dataKey="previsao_lstm_kwh" name="Previsão (kWh)" stroke="var(--neural-teal)" strokeWidth={2.5} fill="url(#solar-area)" isAnimationActive={false} />
-                  <Linha type="monotone" dataKey="referencia_fisica_kwh" name="Referência física" stroke="var(--chart-physical)" strokeWidth={1.8} strokeDasharray="5 5" dot={false} isAnimationActive={false} />
+                  <AreaGrafico type="monotone" dataKey="previsao_lstm_kwh" name="Geração prevista" stroke="var(--neural-teal)" strokeWidth={2.5} fill="url(#solar-area)" isAnimationActive={false} />
+                  <Linha type="monotone" dataKey="referencia_fisica_kwh" name="Estimativa básica pelo sol" stroke="var(--chart-physical)" strokeWidth={1.8} strokeDasharray="5 5" dot={false} isAnimationActive={false} />
                 </GraficoComposto>
               </ContainerResponsivo>
             </div>

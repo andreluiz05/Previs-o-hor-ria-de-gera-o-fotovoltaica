@@ -55,6 +55,74 @@ class CentralApisTests(unittest.TestCase):
         self.assertTrue(res["ok"])
         self.assertAlmostEqual(res["potencia_kw"], 2.45, places=3)
 
+    def test_atualizar_local_clima_suporta_estacao_real_e_accuweather_oficial(self):
+        mock_wttr = MagicMock()
+        mock_wttr.status_code = 200
+        mock_wttr.ok = True
+        mock_wttr.raise_for_status.return_value = None
+        mock_wttr.json.return_value = {
+            "current_condition": [
+                {
+                    "temp_C": "30",
+                    "FeelsLikeC": "32",
+                    "cloudcover": "35",
+                    "windspeedKmph": "14",
+                    "humidity": "62",
+                }
+            ]
+        }
+        mock_om = MagicMock()
+        mock_om.status_code = 200
+        mock_om.ok = True
+        mock_om.raise_for_status.return_value = None
+        mock_om.json.return_value = {"current": {"shortwave_radiation": 520.0, "temperature_2m": 27.5}}
+
+        with patch("clima.requests.get", side_effect=[mock_wttr, mock_om]):
+            resp = self.central.atualizar_local_clima(
+                cidade="Igarassu, Pernambuco",
+                latitude=-7.8342,
+                longitude=-34.9064,
+                pasta_saida=self.pasta,
+                provedor_clima="accuweather",
+            )
+
+        self.assertEqual(resp["config"]["cidade"], "Igarassu, Pernambuco")
+        self.assertTrue(resp["clima_atual"]["ok"])
+        # Deve refletir os 30 °C da estação terrestre real em vez dos 27,5 °C da célula marítima
+        self.assertEqual(resp["clima_atual"]["temperatura_c"], 30.0)
+        self.assertEqual(resp["clima_atual"]["sensacao_c"], 32.0)
+
+        # Testa também fluxo oficial com chave da AccuWeather
+        mock_geo = MagicMock(ok=True, status_code=200)
+        mock_geo.raise_for_status.return_value = None
+        mock_geo.json.return_value = {"Key": "45882", "LocalizedName": "Igarassu"}
+
+        mock_aw_cur = MagicMock(ok=True, status_code=200)
+        mock_aw_cur.raise_for_status.return_value = None
+        mock_aw_cur.json.return_value = [
+            {
+                "WeatherText": "Ensolarado",
+                "Temperature": {"Metric": {"Value": 30.2}},
+                "RealFeelTemperature": {"Metric": {"Value": 32.5}},
+                "SolarIrradiance": {"Value": 615.0},
+                "CloudCover": 30,
+                "RelativeHumidity": 60,
+                "Wind": {"Speed": {"Metric": {"Value": 15.0}}},
+            }
+        ]
+        with patch("clima.requests.get", side_effect=[mock_geo, mock_aw_cur]):
+            resp_aw = self.central.atualizar_local_clima(
+                cidade="Igarassu, Pernambuco",
+                latitude=-7.8342,
+                longitude=-34.9064,
+                pasta_saida=self.pasta,
+                provedor_clima="accuweather",
+                chave_api_accuweather="minha_chave_accu_teste",
+            )
+        self.assertEqual(resp_aw["clima_atual"]["modo_fonte"], "accuweather_oficial")
+        self.assertEqual(resp_aw["clima_atual"]["temperatura_c"], 30.2)
+        self.assertEqual(resp_aw["clima_atual"]["irradiancia_wm2"], 615.0)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -385,7 +385,9 @@ button.journey-step:hover { border-color: var(--neural-teal); }
 .file-picker:focus-within { outline: 3px solid var(--focus-ring); outline-offset: 4px; }
 .search-feedback { color: var(--text-secondary); font-size: 12px; margin: 10px 0; }
 
-.recharts-legend-item-text { color: var(--text-secondary) !important; }
+.recharts-default-legend { display: inline-flex !important; flex-wrap: wrap; gap: 8px 20px; justify-content: flex-end; }
+.recharts-legend-item { display: inline-flex !important; align-items: center; gap: 6px; margin-right: 0 !important; }
+.recharts-legend-item-text { color: var(--text-secondary) !important; font-size: 12px; font-weight: 500; }
 .forecast-network { display: block; padding: 0; }
 .forecast-network > summary { display: flex; align-items: center; gap: 9px; padding: 12px 16px; list-style: none; }
 .forecast-network > summary::-webkit-details-marker { display: none; }
@@ -642,6 +644,16 @@ button.journey-step:hover { border-color: var(--neural-teal); }
 
 .test-only-callout { padding: 11px 14px; border-radius: 10px; background: var(--solar-amber-soft); border: 1px solid rgba(183, 121, 31, .3); border-left: 4px solid var(--solar-amber); font-size: 12px; line-height: 1.55; color: var(--text-primary); }
 .test-only-callout strong { color: var(--text-primary); }
+
+/* Card interativo de Endereço + Google Maps da API de Clima */
+.selected-address-pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px; background: var(--neural-teal-soft); border: 1px solid rgba(15, 118, 110, .22); font-size: 11px; color: var(--text-primary); }
+.weather-geo-card { border-color: var(--border-subtle); }
+.weather-geo-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding-bottom: 12px; border-bottom: 1px solid var(--border-subtle); }
+.quick-places-row { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.weather-active-box { display: flex; flex-direction: column; gap: 6px; padding: 11px 13px; border-radius: 10px; background: var(--bg-subtle); border: 1px solid var(--border-subtle); }
+.weather-live-pills { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; margin-top: 4px; padding-top: 8px; border-top: 1px solid var(--border-subtle); font-size: 12px; color: var(--text-secondary); }
+.weather-live-pills > span { display: inline-flex; align-items: center; gap: 4px; }
+.weather-live-pills strong { color: var(--text-primary); }
 
 .integration-ping { display: flex; align-items: center; justify-content: space-between; padding: 7px 11px; border-radius: 8px; font-size: 11.5px; }
 .integration-ping.ok { background: var(--signal-ok-soft); color: var(--signal-ok); }

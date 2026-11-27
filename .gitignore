@@ -8,7 +8,7 @@ __pycache__/
 frontend/node_modules/
 node_modules/
 
-# Build e artefatos temporários de teste
+# Build e artefatos temporários
 frontend/dist/
 frontend/.vite/
 frontend/.vite-temp/
@@ -16,13 +16,14 @@ frontend/artifacts/
 
 # Bancos locais de sessão e logs de execução
 *.log
+backend/logs/
 backend/monitoramento/*.sqlite3
 backend/monitoramento/*.sqlite3-shm
 backend/monitoramento/*.sqlite3-wal
 backend/resultados_v3_notebook.zip
 *.zip
 
-# Arquivos de sistema e editores
+# Arquivos de sistema e variáveis locais
 .DS_Store
 Thumbs.db
 .env

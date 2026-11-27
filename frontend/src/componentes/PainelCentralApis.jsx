@@ -387,7 +387,12 @@ export default function PainelCentralApis({ estadoSistema, aoAtualizarConfig, ao
                         {api.ativa ? 'Ativa' : 'Inativa'}
                       </span>
                     </div>
-                    <p className="integration-desc">{api.papel}</p>
+                    <p className="integration-desc">
+                      {api.papel}
+                      {api.categoria === 'clima' && estadoSistema?.config?.cidade
+                        ? ` · Local atual: ${estadoSistema.config.cidade}`
+                        : ''}
+                    </p>
                   </div>
                 </div>
 

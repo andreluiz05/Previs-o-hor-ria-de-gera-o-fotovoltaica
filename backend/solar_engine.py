@@ -84,6 +84,8 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "token_api_inversor": "",
     "campo_potencia_json": "data.results.0.watts",
     "unidade_potencia_api": "W",
+    "provedor_clima": "accuweather",  # 'accuweather' | 'estacao_local' | 'open_meteo'
+    "chave_api_accuweather": "",
 }
 
 DEFAULT_SEEDS: list[int] = [42, 123, 2026]
@@ -198,6 +200,9 @@ def validate_config(c: dict[str, Any]) -> dict[str, Any]:
     cfg["token_api_inversor"] = str(cfg.get("token_api_inversor", "")).strip()[:300]
     cfg["campo_potencia_json"] = str(cfg.get("campo_potencia_json", "")).strip()[:120]
     cfg["unidade_potencia_api"] = "W" if str(cfg.get("unidade_potencia_api", "W")).upper() == "W" else "kW"
+    prov_clima = str(cfg.get("provedor_clima", "accuweather")).strip().lower()
+    cfg["provedor_clima"] = prov_clima if prov_clima in ("accuweather", "estacao_local", "open_meteo") else "accuweather"
+    cfg["chave_api_accuweather"] = str(cfg.get("chave_api_accuweather", "")).strip()[:160]
 
     limites_validos = (
         cfg["quantidade_placas"] > 0
@@ -248,35 +253,108 @@ def salvar_config_ativa(pasta: Path, dados_cfg: dict[str, Any]) -> dict[str, Any
 
 def buscar_localidades(termo: str) -> list[dict[str, Any]]:
     """
-    Busca coordenadas (latitude e longitude) pelo nome da cidade via API Open-Meteo
-    Geocoding, com fallback imediato para o catálogo brasileiro offline.
+    Busca coordenadas (latitude e longitude) por endereço completo (rua, avenida,
+    bairro, CEP) ou cidade usando Nominatim (OpenStreetMap) + Open-Meteo Geocoding,
+    com fallback imediato para o catálogo brasileiro offline.
     """
     busca = (termo or "").strip()
     if len(busca) < 2:
         return CIDADES_OFFLINE_BRASIL[:8]
 
     resultados: list[dict[str, Any]] = []
+
+    def _ja_existe(lat: float, lon: float) -> bool:
+        return any(abs(r["latitude"] - lat) < 0.004 and abs(r["longitude"] - lon) < 0.004 for r in resultados)
+
+    # 1. Busca de endereços, ruas, bairros, CEPs e locais via Nominatim (estilo Google Maps)
     try:
-        resp = requests.get(
-            "https://geocoding-api.open-meteo.com/v1/search",
-            params={"name": busca, "count": 8, "language": "pt", "format": "json"},
-            timeout=6,
+        resp_nom = requests.get(
+            "https://nominatim.openstreetmap.org/search",
+            params={
+                "q": busca,
+                "format": "jsonv2",
+                "addressdetails": 1,
+                "limit": 6,
+                "accept-language": "pt-BR",
+            },
+            headers={"User-Agent": "Helionta-Solar/3.1 (Geocoding Clima Solar)"},
+            timeout=5,
         )
-        resp.raise_for_status()
-        dados = resp.json()
-        for item in dados.get("results", []):
-            resultados.append(
-                {
-                    "nome": item.get("name", ""),
-                    "estado": item.get("admin1", ""),
-                    "pais": item.get("country", ""),
-                    "latitude": round(float(item["latitude"]), 4),
-                    "longitude": round(float(item["longitude"]), 4),
-                }
+        resp_nom.raise_for_status()
+        for item in resp_nom.json():
+            lat = round(float(item["lat"]), 5)
+            lon = round(float(item["lon"]), 5)
+            if _ja_existe(lat, lon):
+                continue
+            addr = item.get("address") or {}
+            rua = addr.get("road") or addr.get("pedestrian") or addr.get("Numeric") or ""
+            numero = addr.get("house_number") or ""
+            bairro = addr.get("suburb") or addr.get("neighbourhood") or addr.get("city_district") or ""
+            cidade = (
+                addr.get("city")
+                or addr.get("town")
+                or addr.get("municipality")
+                or addr.get("village")
+                or item.get("name")
+                or ""
             )
+            estado = addr.get("state") or ""
+            pais = addr.get("country") or ""
+
+            if rua:
+                trecho_rua = f"{rua}, {numero}" if numero else rua
+                nome_principal = f"{trecho_rua} ({bairro})" if bairro else trecho_rua
+                complemento = ", ".join(p for p in (cidade, estado) if p)
+            elif bairro and cidade and bairro.lower() != cidade.lower():
+                nome_principal = f"{bairro}, {cidade}"
+                complemento = estado
+            else:
+                nome_principal = cidade or (item.get("display_name", "").split(",")[0].strip())
+                complemento = estado
+
+            if nome_principal:
+                resultados.append(
+                    {
+                        "nome": nome_principal[:90],
+                        "estado": complemento[:70],
+                        "pais": pais,
+                        "latitude": lat,
+                        "longitude": lon,
+                        "tipo": "endereco" if (rua or bairro) else "cidade",
+                    }
+                )
     except Exception:
         pass
 
+    # 2. Complementa com Open-Meteo Geocoding para municípios/cidades rápidas
+    if len(resultados) < 6:
+        try:
+            resp = requests.get(
+                "https://geocoding-api.open-meteo.com/v1/search",
+                params={"name": busca, "count": 6, "language": "pt", "format": "json"},
+                timeout=5,
+            )
+            resp.raise_for_status()
+            dados = resp.json()
+            for item in dados.get("results", []):
+                lat = round(float(item["latitude"]), 5)
+                lon = round(float(item["longitude"]), 5)
+                if _ja_existe(lat, lon):
+                    continue
+                resultados.append(
+                    {
+                        "nome": item.get("name", ""),
+                        "estado": item.get("admin1", ""),
+                        "pais": item.get("country", ""),
+                        "latitude": lat,
+                        "longitude": lon,
+                        "tipo": "cidade",
+                    }
+                )
+        except Exception:
+            pass
+
+    # 3. Contingência offline imediata
     if not resultados:
         termo_lower = busca.lower()
         resultados = [

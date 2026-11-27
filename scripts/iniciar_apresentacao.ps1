@@ -1,7 +1,9 @@
-﻿$ErrorActionPreference = 'Stop'
-Set-Location -LiteralPath $PSScriptRoot
-$py = Join-Path $PSScriptRoot 'backend\.venv\Scripts\python.exe'
-$dist = Join-Path $PSScriptRoot 'frontend\dist\index.html'
+$ErrorActionPreference = 'Stop'
+$raiz = Split-Path -Parent $PSScriptRoot
+Set-Location -LiteralPath $raiz
+
+$py = Join-Path $raiz 'backend\.venv\Scripts\python.exe'
+$dist = Join-Path $raiz 'frontend\dist\index.html'
 $url = 'http://127.0.0.1:8000'
 
 if (-not (Test-Path -LiteralPath $py)) { throw 'Ambiente Python nao encontrado em backend\.venv.' }
@@ -25,9 +27,12 @@ if ($saude) {
     exit 0
 }
 
-Write-Host 'Helionta - preparando sua apresentacao...' -ForegroundColor Yellow
-$backend = Join-Path $PSScriptRoot 'backend'
-$servidor = Start-Process -FilePath $py -WorkingDirectory $backend -ArgumentList '-m','uvicorn','main:app','--host','127.0.0.1','--port','8000' -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $backend 'servidor.log') -RedirectStandardError (Join-Path $backend 'servidor-erros.log')
+Write-Host 'Helionta - iniciando servidor local...' -ForegroundColor Yellow
+$backend = Join-Path $raiz 'backend'
+$pastaLogs = Join-Path $backend 'logs'
+New-Item -ItemType Directory -Force -Path $pastaLogs | Out-Null
+
+$servidor = Start-Process -FilePath $py -WorkingDirectory $backend -ArgumentList '-m','uvicorn','main:app','--host','127.0.0.1','--port','8000' -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $pastaLogs 'servidor.log') -RedirectStandardError (Join-Path $pastaLogs 'servidor-erros.log')
 for ($tentativa = 0; $tentativa -lt 30; $tentativa++) {
     Start-Sleep -Seconds 1
     try { $saude = Invoke-RestMethod "$url/api/health" -TimeoutSec 2 } catch { $saude = $null }
@@ -38,4 +43,4 @@ for ($tentativa = 0; $tentativa -lt 30; $tentativa++) {
     }
     if ($servidor.HasExited) { break }
 }
-throw 'Nao foi possivel iniciar. Consulte backend\servidor-erros.log.'
+throw 'Nao foi possivel iniciar. Consulte backend\logs\servidor-erros.log.'

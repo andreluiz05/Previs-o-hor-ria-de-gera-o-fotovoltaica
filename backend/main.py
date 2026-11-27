@@ -149,6 +149,8 @@ class RequisicaoConfigUsina(BaseModel):
     token_api_inversor: str = ""
     campo_potencia_json: str = "data.results.0.watts"
     unidade_potencia_api: str = "W"
+    provedor_clima: str = "accuweather"
+    chave_api_accuweather: str = ""
 
 
 class RequisicaoSimulacaoFisica(BaseModel):
@@ -288,10 +290,36 @@ class RequisicaoAlternarApi(BaseModel):
     ativa: bool
 
 
+class RequisicaoLocalClima(BaseModel):
+    cidade: str
+    latitude: float
+    longitude: float
+    provedor_clima: str | None = None
+    chave_api_accuweather: str | None = None
+
+
 @app.get("/api/apis")
 def listar_central_apis() -> dict[str, Any]:
     _garantir_artefatos_iniciais()
     return CENTRAL_APIS.listar_tudo(SAIDA_DIR)
+
+
+@app.post("/api/apis/clima/local")
+async def atualizar_endereco_api_clima(req: RequisicaoLocalClima) -> dict[str, Any]:
+    """Muda o endereço/provedor ativo da API de Clima e retorna o clima exato daquele ponto."""
+    _garantir_artefatos_iniciais()
+    try:
+        return await run_in_threadpool(
+            CENTRAL_APIS.atualizar_local_clima,
+            req.cidade,
+            req.latitude,
+            req.longitude,
+            SAIDA_DIR,
+            req.provedor_clima,
+            req.chave_api_accuweather,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.post("/api/apis")

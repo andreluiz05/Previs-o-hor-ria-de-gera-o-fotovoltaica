@@ -89,7 +89,8 @@ class CentralTempoReal:
             capturado = pd.Timestamp(cache["capturado_em"])
             idade_min = (agora - capturado).total_seconds() / 60.0
             mesmo_local = all(abs(float(cache[k]) - float(cfg[k])) < 0.0001 for k in ("latitude", "longitude"))
-            if mesmo_local and 0 <= idade_min <= 15:
+            mesmo_prov = cache.get("provedor_clima", "") == cfg.get("provedor_clima", "accuweather")
+            if mesmo_local and mesmo_prov and 0 <= idade_min <= 15:
                 df = pd.DataFrame(cache["registros"]).set_index("time")
                 df.index = pd.to_datetime(df.index)
                 df = df[METEO].apply(pd.to_numeric, errors="coerce").reindex(indice_hoje)

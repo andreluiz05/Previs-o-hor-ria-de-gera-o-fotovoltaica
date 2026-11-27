@@ -18,6 +18,7 @@ import {
   CheckCircle2 as IconeOk,
   AlertTriangle as IconeAlerta,
   ShieldAlert as IconeCritico,
+  Info as IconeInfo,
   Trash2 as IconeExcluir,
   Save as IconeSalvar,
 } from 'lucide-react';
@@ -170,6 +171,15 @@ export default function PainelConsultaComparacao({ estadoSistema, aoIrParaAba })
 
   return (
     <div className="view-stack">
+      {/* AVISO FIXO E EXPLÍCITO: FERRAMENTA COMPLEMENTAR (NÃO É VERDADE ABSOLUTA) */}
+      <div className="test-only-callout" role="note" style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+        <IconeInfo size={18} style={{ color: 'var(--solar-amber)', flexShrink: 0, marginTop: 2 }} aria-hidden="true" />
+        <div>
+          <strong>Importante — Ferramenta complementar (não é 100% exata nem verdade absoluta):</strong>{' '}
+          as comparações e alertas desta aba usam estimativas de clima regional por satélite e modelos matemáticos/IA, podendo variar conforme nuvens passageiras sobre o seu telhado, microclima local e rede elétrica. Utilize estes resultados <strong>apenas como apoio complementar</strong> para acompanhar sua energia solar — nunca como substituto do medidor oficial ou da avaliação presencial de um técnico/integrador habilitado.
+        </div>
+      </div>
+
       {/* CAIXA 1: REGISTRAR GERAÇÃO (DIÁRIA, HORÁRIA OU CSV) */}
       <section className="card">
         <div className="card-header" style={{ marginBottom: 14 }}>
@@ -299,7 +309,7 @@ export default function PainelConsultaComparacao({ estadoSistema, aoIrParaAba })
                   )}
                 </span>
                 <div>
-                  <span className="section-tag">DIAGNÓSTICO AUTOMÁTICO DAS PLACAS E PARTE ELÉTRICA</span>
+                  <span className="section-tag">TRIAGEM COMPLEMENTAR APROXIMADA · NÃO SUBSTITUI VISTORIA TÉCNICA</span>
                   <h2 className="card-title" style={{ marginTop: 2 }}>{diag.titulo}</h2>
                   <p className="card-subtitle" style={{ marginTop: 4 }}>{diag.recomendacao}</p>
                 </div>
@@ -316,7 +326,7 @@ export default function PainelConsultaComparacao({ estadoSistema, aoIrParaAba })
 
               {diag.verificacoes?.length > 0 && (
                 <div className="health-checklist">
-                  <strong>O que verificar na instalação:</strong>
+                  <strong>Sugestões de conferência (apoio complementar):</strong>
                   <ul>
                     {diag.verificacoes.map((item) => (
                       <li key={item}>{item}</li>
@@ -324,6 +334,10 @@ export default function PainelConsultaComparacao({ estadoSistema, aoIrParaAba })
                   </ul>
                 </div>
               )}
+
+              <p style={{ margin: '12px 0 0', paddingTop: 10, borderTop: '1px dashed var(--border-subtle)', fontSize: 11.5, color: 'var(--text-secondary)' }}>
+                <strong>Nota de uso:</strong> esta leitura é uma estimativa estatística de apoio complementar, não um diagnóstico 100% verdadeiro ou definitivo. Confirme sempre no visor do inversor, na fatura da concessionária e com um profissional qualificado antes de realizar manutenção.
+              </p>
             </section>
           )}
 
