@@ -1,0 +1,32 @@
+{
+  "natureza": "FICTICIO - teste de software",
+  "modo": "previsao_ficticia",
+  "amostras": [
+    1991,
+    433,
+    432
+  ],
+  "teste_inicio": "2025-04-13 01:00:00",
+  "teste_fim": "2025-05-01 00:00:00",
+  "seeds": [
+    42
+  ],
+  "epocas": 2,
+  "capacidade_kw": 5.0,
+  "kwp_treino": 5.5,
+  "ranking_validacao": [
+    "RandomForest",
+    "LSTM_residual_fisico",
+    "Referencia_fisica",
+    "RNN",
+    "LSTM_Huber",
+    "Persistencia_24h",
+    "Persistencia_1h"
+  ],
+  "logs_treino": [
+    "RandomForest | seed 42 concluído",
+    "RNN | seed 42 | melhor época: 2",
+    "LSTM_Huber | seed 42 | melhor época: 2",
+    "LSTM_residual_fisico | seed 42 | melhor época: 2"
+  ]
+}

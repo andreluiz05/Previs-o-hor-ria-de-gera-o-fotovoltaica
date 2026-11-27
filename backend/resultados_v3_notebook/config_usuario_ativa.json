@@ -1,0 +1,23 @@
+{
+  "nome": "Sistema Solar Residencial",
+  "cidade": "Igarassu, Pernambuco",
+  "latitude": -7.8342,
+  "longitude": -34.9064,
+  "tipo_sistema": "on_grid",
+  "quantidade_placas": 10,
+  "potencia_placa_wp": 550.0,
+  "modelo_placa": "Monocristalino Half-Cell 550 Wp",
+  "marca_inversor": "Inversor On-Grid 5 kW",
+  "inversor_kw": 5.0,
+  "inclinacao_graus": 10.0,
+  "orientacao": "norte",
+  "tem_bateria": false,
+  "tem_gerador_auxiliar": false,
+  "eficiencia_inversor": 0.96,
+  "coeficiente_termico": -0.0035,
+  "noct_c": 45.0,
+  "perdas_dc": 0.08,
+  "azimute_graus": 0.0,
+  "albedo": 0.2,
+  "tarifa_energia_rs": 0.9
+}

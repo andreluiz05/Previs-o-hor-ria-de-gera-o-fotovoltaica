@@ -1,0 +1,29 @@
+# Ambientes e dependências
+backend/.venv/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+frontend/node_modules/
+node_modules/
+
+# Build e artefatos temporários de teste
+frontend/dist/
+frontend/.vite/
+frontend/.vite-temp/
+frontend/artifacts/
+
+# Bancos locais de sessão e logs de execução
+*.log
+backend/monitoramento/*.sqlite3
+backend/monitoramento/*.sqlite3-shm
+backend/monitoramento/*.sqlite3-wal
+backend/resultados_v3_notebook.zip
+*.zip
+
+# Arquivos de sistema e editores
+.DS_Store
+Thumbs.db
+.env
+.env.*
