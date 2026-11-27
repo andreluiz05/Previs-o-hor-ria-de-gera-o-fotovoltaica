@@ -1,0 +1,44 @@
+\section{Introdução}
+A energia solar fotovoltaica contribui para a diversificação das fontes energéticas. Entretanto, sua produção não é constante: varia conforme a posição do Sol, a presença de nuvens, a temperatura e as características dos equipamentos. Essa variabilidade dificulta o planejamento energético, especialmente quando a geração deve acompanhar a demanda ou auxiliar a operação da rede elétrica.
+
+Corrêa (2026) \cite{correa} destaca a importância de combinar informações meteorológicas e séries históricas para estimar a produção futura de uma instalação fotovoltaica. Em seu estudo, realizado com dados diários de geração do IFES -- Campus Linhares, a inclusão de variáveis climáticas e componentes sazonais contribuiu para melhorar o desempenho da rede LSTM. A investigação constitui uma referência teórica e metodológica para este projeto, cujo objetivo é diferente: avaliar a previsão horária em um cenário simulado de Pernambuco.
+
+O objetivo geral é desenvolver e comparar modelos de aprendizado de máquina capazes de estimar a geração da próxima hora, considerando o histórico de energia, a meteorologia e os limites físicos de um sistema fotovoltaico. Como objetivos específicos, busca-se incorporar os parâmetros dos módulos e do inversor, avaliar o LSTM direto e residual e comparar seus erros com os de modelos mais simples. Não se pretende provar previamente que uma rede neural seja superior a todos os demais métodos.
+
+\section{Fundamentação teórica}
+\subsection{Energia solar e radiação incidente}
+A energia solar pode ser aproveitada para produzir calor ou eletricidade. A disponibilidade do recurso solar na superfície terrestre não depende apenas da posição geográfica: a rotação da Terra, o ciclo anual e os fenômenos atmosféricos modificam a quantidade de energia recebida ao longo do tempo. Parte da radiação é absorvida, refletida ou espalhada antes de chegar ao solo, conforme a descrição de Corrêa (2026, p. 18--20) \cite{correa}.
+
+É importante distinguir irradiância de irradiação. A primeira indica a potência da radiação por unidade de área, geralmente expressa em W/m\textsuperscript{2}. A segunda representa a energia acumulada nessa área durante determinado intervalo, expressa, por exemplo, em Wh/m\textsuperscript{2}. Para caracterizar o recurso solar, utilizam-se três componentes principais: a irradiância global horizontal (GHI), que representa a radiação total recebida por uma superfície horizontal; a irradiância normal direta (DNI), associada aos raios solares que chegam diretamente; e a irradiância horizontal difusa (DHI), decorrente do espalhamento atmosférico. A radiação refletida pelo entorno também pode contribuir para a energia incidente em módulos inclinados.
+
+Essas informações são relevantes porque a potência produzida pelos módulos depende da radiação que efetivamente alcança sua superfície. A mesma irradiância horizontal pode resultar em diferentes níveis de geração quando se alteram a inclinação, a orientação ou a posição do Sol.
+
+\subsection{Sistemas fotovoltaicos e fatores de desempenho}
+As células fotovoltaicas convertem a radiação solar em eletricidade por meio do efeito fotovoltaico. A associação de células forma os módulos, cuja conexão permite construir instalações com diferentes potências. Os módulos geram corrente contínua (CC), enquanto o inversor realiza a conversão para corrente alternada (CA), adequada ao consumo e à conexão com a rede elétrica \cite{correa}.
+
+A potência nominal dos módulos, expressa em watts-pico (Wp), é determinada em condições padronizadas de ensaio. Ela não representa uma produção constante ao longo do dia. A energia, por sua vez, é medida em quilowatt-hora (kWh), e corresponde à potência acumulada durante um intervalo. Assim, um inversor limitado a 5 kW pode entregar, no modelo adotado, no máximo 5 kWh em uma hora.
+
+A irradiância é o principal fator de geração, porém a temperatura das células também modifica a eficiência de conversão. Em módulos convencionais, o aumento da temperatura tende a reduzir a potência elétrica disponível para a mesma irradiância. A ventilação pode auxiliar no resfriamento dos módulos, enquanto a nebulosidade altera a quantidade e a composição da radiação que alcança as placas. A chuva e a umidade podem estar associadas às condições atmosféricas que influenciam a geração, mas seus efeitos não são necessariamente independentes da irradiância.
+
+O inversor também impõe restrições. Quando a potência disponível do arranjo ultrapassa o limite de conversão, a saída é limitada à capacidade do equipamento, fenômeno denominado \textit{clipping}. Além disso, existem perdas na conversão e nos componentes elétricos. Por isso, considerar somente o clima, sem representar os equipamentos, pode levar a estimativas inconsistentes com a instalação analisada.
+
+\subsection{Previsão de geração e aprendizado de máquina}
+Segundo Corrêa (2026, p. 21--23) \cite{correa}, as técnicas de previsão podem ser organizadas em abordagens físicas, estatísticas e híbridas. Os modelos físicos representam fenômenos como a posição solar, a incidência de radiação e a conversão de energia. Já os métodos estatísticos e de aprendizado de máquina extraem relações dos dados históricos. As abordagens híbridas combinam conhecimentos físicos com modelos que aprendem a partir de exemplos.
+
+Neste projeto, o aprendizado de máquina é tratado como um problema de regressão supervisionada: o algoritmo recebe informações de entrada e aprende a estimar uma variável numérica, a energia fotovoltaica em kWh. A qualidade das entradas e a separação adequada dos dados são tão importantes quanto a escolha do algoritmo. Um modelo complexo não garante, por si só, menor erro.
+
+\subsection{Redes neurais recorrentes e LSTM}
+As redes neurais artificiais utilizam conexões ponderadas para transformar informações de entrada em previsões. Durante o treinamento, os pesos são modificados de modo a reduzir a diferença entre os valores previstos e os valores-alvo. Em uma série temporal, a ordem das observações contém informação: a geração de uma hora pode estar relacionada às condições das horas anteriores.
+
+As redes neurais recorrentes (RNN) incorporam um estado interno que é atualizado a cada passo da sequência. Entretanto, redes recorrentes simples podem ter dificuldade em preservar dependências temporais distantes devido a problemas na propagação do gradiente. A LSTM, proposta por Hochreiter e Schmidhuber (1997) \cite{lstm}, foi desenvolvida para facilitar o aprendizado dessas dependências.
+
+De acordo com a descrição da célula LSTM apresentada por Corrêa (2026, p. 24--28) \cite{correa}, sua memória é regulada por três mecanismos principais. A porta de esquecimento controla a retenção de informações anteriores; a porta de entrada determina quais novas informações atualizam a memória; e a porta de saída define a parcela do estado interno utilizada na saída. Esses mecanismos possibilitam que a rede processe uma sequência sem tratar todos os registros anteriores como igualmente relevantes.
+
+No contexto fotovoltaico, o LSTM pode aprender relações entre o histórico de geração, o ciclo diário e as variações meteorológicas. A escolha da arquitetura se justifica pela natureza sequencial dos dados, não pela garantia de superioridade sobre a RNN ou outros métodos. Neste estudo, emprega-se uma rede com uma camada LSTM de 32 unidades, suficiente para avaliar a proposta sem acrescentar complexidade desnecessária.
+
+\subsection{Sazonalidade, Random Forest e aprendizagem residual}
+A geração fotovoltaica apresenta padrões cíclicos associados ao dia e ao ano. A persistência sazonal é uma referência simples: prevê a geração repetindo o valor registrado no mesmo horário do dia anterior. Embora útil para comparação, pode falhar quando as condições atmosféricas mudam. A codificação cíclica do horário e do dia do ano, por outro lado, permite representar a proximidade temporal entre o final e o início de cada ciclo.
+
+O Random Forest é um método que combina várias árvores de decisão, agregando suas previsões para estimar a variável-alvo \cite{rf}. Ele pode representar relações não lineares entre clima e geração sem utilizar uma memória recorrente interna. Para comparar os métodos, pode receber os mesmos registros históricos organizados como atributos.
+
+A aprendizagem residual combina uma estimativa física com uma rede neural que aprende sua diferença em relação ao alvo. A previsão final é a soma da referência com a correção aprendida. A abordagem incorpora os conhecimentos sobre os equipamentos, mas depende da qualidade da referência e dos dados. Também foi avaliado um LSTM direto, que estima a geração sem essa correção explícita.

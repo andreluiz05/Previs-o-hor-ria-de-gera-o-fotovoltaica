@@ -1,0 +1,41 @@
+\section{Materiais e métodos}
+\subsection{Instalação e conjunto de dados}
+O sistema de referência é uma instalação hipotética conectada à rede elétrica em Recife, sem bateria ou gerador auxiliar. A Tabela~\ref{tab:cfg} apresenta os parâmetros configurados. Os valores de eficiência e perdas são hipóteses de simulação, não especificações verificadas de equipamentos reais.
+
+\begin{table}[!ht]
+\centering
+\caption{Características do sistema fotovoltaico simulado}
+\label{tab:cfg}
+% \small
+\begin{tabularx}{0.94\textwidth}{@{}Xl@{}}\toprule
+Parâmetro & Valor\\\midrule
+Quantidade e potência dos módulos & 10 módulos de 550 Wp\\
+Potência nominal do arranjo & 5,5 kWp\\
+Potência e eficiência do inversor & 5 kW / 96\%\\
+Inclinação e orientação & 10° / norte\\
+Coeficiente térmico & $-0,35$\% por °C\\
+Temperatura nominal de operação (NOCT) & 45 °C\\
+Perdas DC e albedo & 8\% / 0,20\\
+\bottomrule
+\end{tabularx}
+\textbf{Fonte:} Elaborado pelo autor.
+\end{table}
+
+Foram utilizados 2.880 registros horários sintéticos, correspondentes a 120 dias, de janeiro a maio de 2025. O gerador considera a geometria solar, nebulosidade, temperatura, perdas e ruído. Foram acrescentadas perturbações à irradiância, à temperatura e à nebulosidade de entrada para simular erros de previsão meteorológica. Os dados não são medições de uma usina nem previsões meteorológicas arquivadas.
+
+As entradas incluem o histórico das últimas 24 horas, irradiância GHI, DNI e DHI, temperatura, cobertura de nuvens, precipitação, vento e umidade. Também são utilizados horário e dia do ano em representação cíclica, elevação solar, irradiância no plano dos módulos, temperatura estimada das células e referência física da geração. O objetivo é estimar a energia da próxima hora, com atualização sucessiva do histórico.
+
+\subsection{Processamento, modelagem e treinamento}
+Após a formação das janelas, foram obtidas 1.991 amostras de treinamento, 433 de validação e 432 de teste. A divisão foi cronológica, com cortes de aproximadamente 70\%, 15\% e 15\% dos registros originais. A normalização MinMax foi ajustada exclusivamente no conjunto de treino, evitando que informações futuras influenciassem a escala utilizada no aprendizado.
+
+A estimativa física foi implementada em Python com uma aproximação inspirada no PVWatts \cite{pvwatts}. Ela considera a orientação e a inclinação dos módulos, a temperatura estimada das células, a potência nominal e as perdas elétricas. A saída é convertida para energia horária, respeitando a eficiência e a capacidade do inversor. A biblioteca PVlib não foi utilizada. Os modelos tiveram suas saídas limitadas entre zero e 5 kWh por hora e zeradas em intervalos sem luz solar, conforme a geometria adotada.
+
+As redes foram implementadas em PyTorch, com uma camada recorrente de 32 unidades, uma camada densa de 16 neurônios e uma saída numérica. O histórico é processado pela rede recorrente e combinado com as informações meteorológicas da hora-alvo. Foi utilizado o otimizador Adam, lotes de 32 registros, taxa inicial de aprendizado de 0,001 e até 40 épocas. A parada antecipada (Early Stopping) e a redução da taxa de aprendizado foram adotadas para controlar o treinamento. A perda de Huber \cite{huber} reduz a influência relativa de erros grandes, sem exigir uma arquitetura adicional.
+
+Foram avaliados o LSTM direto com Huber, o LSTM residual físico, a RNN simples, o Random Forest com 150 árvores, a referência física e a persistência de uma e de 24 horas. Os modelos treináveis foram executados com três sementes (42, 123 e 2026), mantendo o mesmo conjunto de teste. Não foram realizadas três avaliações em bases independentes.
+
+\subsection{Métricas de avaliação}
+O MAE representa o erro absoluto médio, em kWh; o RMSE também é expresso em kWh e atribui maior peso aos erros grandes. O WAPE compara a soma dos erros absolutos com a soma da energia-alvo, fornecendo um indicador percentual agregado. Foi preferido ao MAPE por evitar a divisão individual por valores nulos ou próximos de zero, frequentes no período noturno. O WAPE ainda exige que a geração total do recorte seja diferente de zero. O coeficiente de determinação, representado por R\textsuperscript{2}, indica a qualidade do ajuste em relação à variabilidade do alvo e não deve ser interpretado como porcentagem de acertos.
+
+Além dessas métricas, foram observados os erros diurnos, sob chuva e nebulosidade simuladas, e o percentil 95 dos erros absolutos. Essa análise permite identificar limitações que podem ficar ocultas nas médias globais.
+\FloatBarrier

@@ -1,0 +1,805 @@
+% \documentclass[12pt,a4paper]{article}
+
+% % ------------------------------------------------
+% % PACOTES
+% % ------------------------------------------------
+% \usepackage[utf8]{inputenc}
+% \usepackage[T1]{fontenc}
+% \usepackage[brazil]{babel}
+% \usepackage{lmodern}
+
+% \usepackage{amsmath,amssymb}
+% \usepackage{graphicx}
+% \usepackage{booktabs}
+% \usepackage{float}
+% \usepackage{geometry}
+% \usepackage{setspace}
+% \usepackage{array}
+% \usepackage{url}
+% \usepackage{hyperref}
+% \usepackage{cite}
+
+% % ------------------------------------------------
+% % CONFIGURAÇÕES
+% % ------------------------------------------------
+% \geometry{
+%     a4paper,
+%     left=3cm,
+%     right=2cm,
+%     top=3cm,
+%     bottom=2cm
+% }
+
+% \onehalfspacing
+
+% \hypersetup{
+%     colorlinks=true,
+%     linkcolor=black,
+%     citecolor=black,
+%     urlcolor=blue
+% }
+
+% % ------------------------------------------------
+% % DOCUMENTO
+% % ------------------------------------------------
+% \begin{document}
+
+% \begin{center}
+
+%     {\Large\textbf{Previsão de Geração de Energia Fotovoltaica
+%     Utilizando Aprendizado Profundo, Variáveis Meteorológicas
+%     e uma Abordagem Híbrida com LSTM Residual}}
+
+%     \vspace{1cm}
+
+% \end{center}
+
+% % ------------------------------------------------
+% % RESUMO
+% % ------------------------------------------------
+
+% \begin{abstract}
+
+% A previsão da geração de energia fotovoltaica constitui um
+% problema relevante para o planejamento energético, especialmente
+% em regiões com elevada disponibilidade de radiação solar, como
+% o estado de Pernambuco, Brasil. Entretanto, a geração
+% fotovoltaica apresenta comportamento variável em função das
+% condições meteorológicas, da posição solar, da temperatura dos
+% módulos e das características da instalação.
+
+% Este trabalho apresenta uma abordagem de aprendizado de máquina
+% para previsão da geração fotovoltaica, utilizando redes neurais
+% recorrentes, com ênfase em Long Short-Term Memory (LSTM),
+% Random Forest e uma arquitetura híbrida baseada em aprendizagem
+% residual. A abordagem proposta combina uma estimativa inicial
+% da geração baseada na irradiância solar com uma rede LSTM
+% responsável por aprender os desvios entre a estimativa física
+% e a geração observada.
+
+% Foram investigadas técnicas de regularização, incluindo Huber
+% Loss, Early Stopping e redução adaptativa da taxa de
+% aprendizagem. Também foram consideradas restrições físicas
+% relacionadas à geração noturna e à potência máxima do inversor.
+
+% Nos experimentos preliminares com dados simulados, o modelo
+% LSTM residual com referência de irradiância apresentou WAPE
+% de 0,12\%, superando o Random Forest, que obteve 0,73\%.
+
+% Apesar dos resultados promissores, os dados utilizados nessa
+% etapa são sintéticos e favorecem a relação entre irradiância
+% e geração. Portanto, os resultados não representam ainda uma
+% validação com instalações fotovoltaicas reais. O trabalho
+% estabelece uma estrutura experimental para posterior avaliação
+% com dados meteorológicos e de geração medidos em Pernambuco.
+
+% \end{abstract}
+
+% \noindent
+% \textbf{Palavras-chave:} Energia fotovoltaica; Aprendizado de
+% máquina; LSTM; Random Forest; Previsão de energia;
+% Aprendizagem residual.
+
+% % ------------------------------------------------
+% % 1 INTRODUÇÃO
+% % ------------------------------------------------
+
+% \section{Introdução}
+
+% A expansão da geração de energia solar fotovoltaica tem
+% aumentado a necessidade de métodos capazes de estimar e prever
+% a produção de energia elétrica. A geração fotovoltaica depende
+% diretamente da disponibilidade de radiação solar e sofre
+% influência de fatores meteorológicos, como nebulosidade,
+% temperatura, umidade e velocidade do vento.
+
+% No Brasil, especialmente na região Nordeste, a disponibilidade
+% de recursos solares representa uma oportunidade para ampliar
+% a participação dessa fonte na matriz elétrica. Entretanto,
+% a variabilidade das condições atmosféricas torna necessário
+% o desenvolvimento de modelos computacionais capazes de
+% representar o comportamento temporal da geração.
+
+% Técnicas de aprendizado de máquina têm sido utilizadas para
+% modelar relações não lineares entre variáveis meteorológicas
+% e produção de energia. Entre essas técnicas, destacam-se
+% algoritmos baseados em árvores, como Random Forest, e redes
+% neurais recorrentes, como Recurrent Neural Network (RNN) e
+% Long Short-Term Memory (LSTM).
+
+% O Random Forest apresenta vantagens relacionadas à facilidade
+% de treinamento, robustez e capacidade de representar relações
+% não lineares. Por outro lado, redes LSTM são projetadas para
+% identificar dependências temporais em sequências de dados,
+% característica relevante para problemas de previsão de
+% séries temporais.
+
+% Apesar dessas vantagens, redes neurais podem apresentar
+% dificuldades de treinamento, principalmente quando existem
+% observações extremas, períodos de geração nula e variações
+% abruptas nas condições meteorológicas.
+
+% Diante desse cenário, este trabalho propõe uma abordagem
+% híbrida baseada em aprendizagem residual, na qual uma
+% estimativa inicial de geração fotovoltaica é obtida a partir
+% da irradiância solar, enquanto uma rede LSTM aprende a
+% corrigir os desvios dessa estimativa.
+
+% O objetivo principal é investigar se essa combinação permite
+% melhorar o desempenho preditivo sem aumentar excessivamente
+% a complexidade da arquitetura.
+
+% \subsection{Objetivos}
+
+% O objetivo geral consiste em desenvolver e avaliar modelos
+% de aprendizado de máquina para previsão de geração de energia
+% fotovoltaica utilizando informações temporais e meteorológicas.
+
+% Os objetivos específicos são:
+
+% \begin{itemize}
+%     \item Implementar modelos Random Forest, RNN e LSTM.
+%     \item Investigar técnicas de otimização do treinamento
+%     das redes neurais.
+%     \item Incorporar informações meteorológicas e temporais
+%     ao processo de previsão.
+%     \item Implementar uma abordagem híbrida baseada em
+%     aprendizagem residual.
+%     \item Aplicar restrições físicas para evitar previsões
+%     inconsistentes.
+%     \item Comparar os modelos utilizando métricas de erro
+%     e capacidade explicativa.
+%     \item Estabelecer uma metodologia para validação posterior
+%     com dados reais de Pernambuco.
+% \end{itemize}
+
+% % ------------------------------------------------
+% % 2 FUNDAMENTAÇÃO TEÓRICA
+% % ------------------------------------------------
+
+% \section{Fundamentação Teórica}
+
+% \subsection{Geração de energia fotovoltaica}
+
+% A geração fotovoltaica ocorre por meio da conversão da
+% radiação solar em energia elétrica utilizando células
+% semicondutoras.
+
+% A potência produzida depende principalmente da irradiância
+% incidente sobre o plano dos módulos, da temperatura de
+% operação e das características elétricas do sistema.
+
+% Uma representação simplificada da potência fotovoltaica
+% pode ser expressa por:
+
+% \begin{equation}
+% P_{PV}(t) =
+% P_{STC}
+% \frac{G(t)}{G_{STC}}
+% \left[
+% 1+\gamma(T_c(t)-T_{STC})
+% \right]
+% \eta_{sys}
+% \label{eq:potencia_pv}
+% \end{equation}
+
+% em que:
+
+% \begin{itemize}
+%     \item $P_{PV}(t)$ representa a potência gerada;
+%     \item $P_{STC}$ representa a potência nominal nas
+%     condições padrão;
+%     \item $G(t)$ representa a irradiância incidente;
+%     \item $G_{STC}$ representa a irradiância de referência;
+%     \item $\gamma$ representa o coeficiente térmico;
+%     \item $T_c(t)$ representa a temperatura das células;
+%     \item $\eta_{sys}$ representa um fator simplificado
+%     de eficiência do sistema.
+% \end{itemize}
+
+% Essa expressão representa uma aproximação física e não
+% substitui modelos completos de desempenho fotovoltaico.
+
+% \subsection{Random Forest}
+
+% O Random Forest é um algoritmo de aprendizado supervisionado
+% baseado na combinação de múltiplas árvores de decisão
+% \cite{breiman2001random}.
+
+% Cada árvore é treinada com amostras selecionadas
+% aleatoriamente e utiliza subconjuntos de variáveis para
+% produzir estimativas independentes.
+
+% A previsão final corresponde à média das previsões das árvores:
+
+% \begin{equation}
+% \hat{y}(x) =
+% \frac{1}{N}
+% \sum_{i=1}^{N} T_i(x)
+% \label{eq:random_forest}
+% \end{equation}
+
+% em que $T_i(x)$ representa a previsão da árvore $i$, e
+% $N$ representa o número total de árvores.
+
+% O algoritmo apresenta boa capacidade de modelar relações
+% não lineares e pode ser utilizado como referência comparativa
+% para modelos de redes neurais.
+
+% \subsection{Redes neurais recorrentes}
+
+% As redes neurais recorrentes são arquiteturas capazes de
+% processar sequências de dados, utilizando informações de
+% estados anteriores para representar dependências temporais.
+
+% Uma RNN convencional atualiza seu estado oculto conforme:
+
+% \begin{equation}
+% h_t =
+% \tanh(W_x x_t + W_h h_{t-1} + b)
+% \label{eq:rnn}
+% \end{equation}
+
+% Apesar de sua simplicidade, redes recorrentes convencionais
+% podem apresentar dificuldades para aprender dependências
+% temporais de longo prazo devido aos problemas de
+% desaparecimento e explosão do gradiente.
+
+% \subsection{Long Short-Term Memory}
+
+% A arquitetura LSTM foi desenvolvida para melhorar o
+% aprendizado de dependências temporais por meio de mecanismos
+% de controle de memória \cite{hochreiter1997long}.
+
+% Sua estrutura utiliza três portas principais:
+% entrada, esquecimento e saída.
+
+% As operações são representadas por:
+
+% \begin{equation}
+% f_t =
+% \sigma(W_f[h_{t-1},x_t]+b_f)
+% \end{equation}
+
+% \begin{equation}
+% i_t =
+% \sigma(W_i[h_{t-1},x_t]+b_i)
+% \end{equation}
+
+% \begin{equation}
+% \tilde{C}_t =
+% \tanh(W_C[h_{t-1},x_t]+b_C)
+% \end{equation}
+
+% \begin{equation}
+% C_t =
+% f_t \odot C_{t-1}
+% +
+% i_t \odot \tilde{C}_t
+% \end{equation}
+
+% \begin{equation}
+% o_t =
+% \sigma(W_o[h_{t-1},x_t]+b_o)
+% \end{equation}
+
+% \begin{equation}
+% h_t =
+% o_t \odot \tanh(C_t)
+% \end{equation}
+
+% Esses mecanismos permitem que a rede preserve informações
+% relevantes ao longo de uma sequência temporal.
+
+% \subsection{Aprendizagem residual}
+
+% A aprendizagem residual consiste em utilizar uma estimativa
+% inicial como referência e treinar outro modelo para aprender
+% os erros dessa estimativa.
+
+% Neste trabalho, a previsão é representada por:
+
+% \begin{equation}
+% \hat{y}_t =
+% \hat{y}_{phys,t}
+% +
+% f_{\theta}(X_t)
+% \label{eq:residual}
+% \end{equation}
+
+% em que:
+
+% \begin{itemize}
+%     \item $\hat{y}_{phys,t}$ representa a estimativa inicial
+%     baseada na irradiância;
+%     \item $f_{\theta}(X_t)$ representa a correção aprendida
+%     pela rede LSTM;
+%     \item $X_t$ representa as variáveis temporais e
+%     meteorológicas;
+%     \item $\theta$ representa os parâmetros treináveis
+%     da rede.
+% \end{itemize}
+
+% Essa estratégia permite combinar conhecimento físico
+% simplificado com aprendizado de padrões temporais.
+
+% % ------------------------------------------------
+% % 3 METODOLOGIA
+% % ------------------------------------------------
+
+% \section{Metodologia}
+
+% \subsection{Visão geral do experimento}
+
+% O desenvolvimento foi organizado em quatro etapas:
+
+% \begin{enumerate}
+%     \item Preparação dos dados temporais e meteorológicos.
+%     \item Implementação dos modelos de referência.
+%     \item Desenvolvimento da abordagem híbrida residual.
+%     \item Avaliação comparativa dos resultados.
+% \end{enumerate}
+
+% Foram considerados Random Forest, RNN, LSTM convencional
+% e LSTM residual.
+
+% A implementação experimental dos modelos recorrentes
+% foi realizada em PyTorch, enquanto a versão destinada ao
+% MVP também foi estruturada em TensorFlow/Keras
+% \cite{paszke2019pytorch,chollet2015keras}.
+
+% \subsection{Variáveis de entrada}
+
+% O conjunto de variáveis utilizado na estrutura experimental
+% contempla:
+
+% \begin{table}[H]
+% \centering
+% \caption{Variáveis meteorológicas e temporais utilizadas.}
+% \label{tab:variaveis}
+% \begin{tabular}{ll}
+% \toprule
+% \textbf{Variável} & \textbf{Descrição} \\
+% \midrule
+% GHI & Irradiância global horizontal \\
+% DNI & Irradiância direta normal \\
+% DHI & Irradiância difusa horizontal \\
+% Temperatura & Temperatura do ar \\
+% Nebulosidade & Cobertura de nuvens \\
+% Precipitação & Precipitação horária \\
+% Velocidade do vento & Velocidade do vento a 10 metros \\
+% Umidade relativa & Umidade atmosférica \\
+% Hora do dia & Representação temporal \\
+% Dia do ano & Representação sazonal \\
+% Elevação solar & Posição aparente do Sol \\
+% Geração histórica & Valores anteriores de geração \\
+% \bottomrule
+% \end{tabular}
+% \end{table}
+
+% As variáveis meteorológicas são utilizadas para representar
+% as condições atmosféricas associadas à geração fotovoltaica.
+
+% \subsection{Preparação das sequências temporais}
+
+% Para os modelos recorrentes, foi utilizada uma janela
+% histórica de 24 horas.
+
+% Assim, cada amostra contém informações referentes às
+% 24 observações anteriores ao instante de previsão.
+
+% A representação pode ser expressa por:
+
+% \begin{equation}
+% X_t =
+% [x_{t-24},x_{t-23},\ldots,x_{t-1}]
+% \label{eq:janela}
+% \end{equation}
+
+% O modelo utiliza essa sequência para estimar a geração
+% no instante seguinte.
+
+% A normalização foi realizada utilizando MinMaxScaler,
+% ajustado exclusivamente sobre os dados de treinamento,
+% evitando vazamento de informações entre os conjuntos
+% \cite{pedregosa2011scikit}.
+
+% \subsection{Divisão dos dados}
+
+% Foi adotada uma divisão cronológica:
+
+% \begin{itemize}
+%     \item 70\% para treinamento;
+%     \item 15\% para validação;
+%     \item 15\% para teste.
+% \end{itemize}
+
+% Essa estratégia preserva a ordem temporal dos registros
+% e evita utilizar informações futuras no treinamento
+% de modelos destinados à previsão.
+
+% \subsection{Configuração dos modelos}
+
+% O Random Forest foi configurado com 150 árvores e mínimo
+% de duas amostras por folha.
+
+% A RNN e a LSTM foram configuradas com 32 unidades
+% recorrentes, seguidas de uma camada Dense com 16 neurônios
+% e uma saída escalar.
+
+% As principais configurações foram:
+
+% \begin{table}[H]
+% \centering
+% \caption{Configuração dos modelos experimentais.}
+% \label{tab:configuracoes}
+% \begin{tabular}{ll}
+% \toprule
+% \textbf{Parâmetro} & \textbf{Configuração} \\
+% \midrule
+% Janela temporal & 24 horas \\
+% Unidades recorrentes & 32 \\
+% Camada Dense & 16 neurônios \\
+% Otimizador & Adam \\
+% Taxa inicial de aprendizagem & 0,001 \\
+% Máximo de épocas & 100 \\
+% Early Stopping & Paciência 10 \\
+% ReduceLROnPlateau & Fator 0,5 \\
+% Número de árvores RF & 150 \\
+% \bottomrule
+% \end{tabular}
+% \end{table}
+
+% O otimizador Adam foi utilizado para atualização dos
+% parâmetros das redes neurais \cite{kingma2015adam}.
+
+% Também foi investigada a utilização da função Huber Loss,
+% que apresenta menor sensibilidade a erros extremos do que
+% o erro quadrático médio \cite{huber1964robust}.
+
+% Sua formulação é:
+
+% \begin{equation}
+% L_{\delta}(e) =
+% \begin{cases}
+% \frac{1}{2}e^2, & |e| \leq \delta \\[6pt]
+% \delta\left(|e|-\frac{1}{2}\delta\right),
+% & |e| > \delta
+% \end{cases}
+% \label{eq:huber}
+% \end{equation}
+
+% \subsection{Restrições físicas}
+
+% Foram incorporadas duas restrições importantes.
+
+% A primeira consiste em limitar a geração prevista a zero
+% durante a noite, utilizando uma estimativa geométrica
+% da elevação solar.
+
+% A segunda consiste em limitar a potência prevista à
+% capacidade nominal do inversor:
+
+% \begin{equation}
+% 0 \leq \hat{P}_t \leq P_{inv}
+% \label{eq:limite_inversor}
+% \end{equation}
+
+% Essas restrições reduzem a possibilidade de previsões
+% fisicamente inconsistentes.
+
+% \subsection{Métricas de avaliação}
+
+% Foram utilizadas as seguintes métricas:
+
+% \textbf{Erro absoluto médio (MAE):}
+
+% \begin{equation}
+% MAE =
+% \frac{1}{n}
+% \sum_{i=1}^{n}
+% |y_i-\hat{y}_i|
+% \label{eq:mae}
+% \end{equation}
+
+% \textbf{Raiz do erro quadrático médio (RMSE):}
+
+% \begin{equation}
+% RMSE =
+% \sqrt{
+% \frac{1}{n}
+% \sum_{i=1}^{n}
+% (y_i-\hat{y}_i)^2
+% }
+% \label{eq:rmse}
+% \end{equation}
+
+% \textbf{Coeficiente de determinação:}
+
+% \begin{equation}
+% R^2 =
+% 1-
+% \frac{
+% \sum_i(y_i-\hat{y}_i)^2
+% }{
+% \sum_i(y_i-\bar{y})^2
+% }
+% \label{eq:r2}
+% \end{equation}
+
+% \textbf{Erro percentual absoluto ponderado (WAPE):}
+
+% \begin{equation}
+% WAPE =
+% \frac{
+% \sum_i |y_i-\hat{y}_i|
+% }{
+% \sum_i |y_i|
+% }
+% \times 100
+% \label{eq:wape}
+% \end{equation}
+
+% O WAPE foi utilizado como métrica percentual agregada,
+% reduzindo os problemas associados ao cálculo do MAPE
+% em observações com geração próxima de zero.
+
+% Também foram registrados o percentil 95 dos erros
+% absolutos, o erro máximo e o viés médio.
+
+% % ------------------------------------------------
+% % 4 RESULTADOS E DISCUSSÃO
+% % ------------------------------------------------
+
+% \section{Resultados e Discussão}
+
+% \subsection{Experimento preliminar}
+
+% Os primeiros experimentos comparativos indicaram que
+% o Random Forest apresentava desempenho superior às
+% redes recorrentes convencionais.
+
+% Entretanto, a investigação de estratégias de treinamento
+% e a incorporação de uma referência física simplificada
+% permitiram desenvolver uma arquitetura híbrida baseada
+% em aprendizagem residual.
+
+% O objetivo dessa modificação foi reduzir a quantidade
+% de relações que a rede precisava aprender diretamente,
+% concentrando seu treinamento na correção da estimativa
+% inicial.
+
+% \subsection{Comparação dos modelos}
+
+% Na última execução de controle, utilizando 45 dias
+% de dados simulados, foram obtidos os seguintes resultados:
+
+% \begin{table}[H]
+% \centering
+% \caption{Comparação do desempenho dos modelos.}
+% \label{tab:resultados}
+% \begin{tabular}{lrr}
+% \toprule
+% \textbf{Modelo} & \textbf{MAE (MW)} & \textbf{WAPE (\%)} \\
+% \midrule
+% LSTM residual + irradiância & 0,024910 & \textbf{0,12} \\
+% Referência pela irradiância & 0,077073 & 0,36 \\
+% Random Forest & 0,158116 & 0,73 \\
+% LSTM + Huber & 0,713859 & 3,30 \\
+% RNN & 0,763359 & 3,53 \\
+% LSTM original & 2,043278 & 9,46 \\
+% LSTM residual sazonal & 3,622252 & 16,76 \\
+% \bottomrule
+% \end{tabular}
+% \end{table}
+
+% O modelo LSTM residual com referência de irradiância
+% apresentou o menor erro percentual agregado entre os
+% modelos avaliados.
+
+% Em comparação com o Random Forest, o WAPE foi reduzido
+% de 0,73\% para 0,12\%.
+
+% Essa diferença representa uma redução relativa de
+% aproximadamente 83,6\% no erro percentual agregado.
+
+% Entretanto, deve-se considerar que o conjunto utilizado
+% nesse experimento foi construído artificialmente, com
+% geração diretamente proporcional à irradiância.
+
+% Consequentemente, a referência física utilizada pelo
+% modelo híbrido apresenta uma vantagem estrutural nesse
+% cenário.
+
+% Portanto, os valores obtidos não devem ser interpretados
+% como evidência de que o modelo apresenta o mesmo
+% desempenho em instalações reais.
+
+% \subsection{Análise das melhorias}
+
+% A utilização da função Huber Loss foi investigada
+% para reduzir a influência de observações extremas
+% no treinamento.
+
+% O Early Stopping foi utilizado para interromper o
+% treinamento quando não havia melhoria na validação,
+% enquanto o ReduceLROnPlateau permitiu reduzir a taxa
+% de aprendizagem durante a otimização.
+
+% A incorporação de restrições físicas também foi
+% importante para limitar as previsões a valores
+% compatíveis com o funcionamento de um sistema
+% fotovoltaico.
+
+% A aprendizagem residual apresentou o resultado
+% mais expressivo no experimento simulado.
+
+% Por outro lado, a utilização da persistência sazonal
+% residual não apresentou vantagem sobre a abordagem
+% residual baseada na irradiância.
+
+% \subsection{Limitações dos resultados}
+
+% A principal limitação desta etapa está relacionada
+% à utilização de dados simulados.
+
+% Embora os dados permitam verificar o funcionamento
+% do pipeline e comparar o comportamento dos algoritmos
+% em um cenário controlado, eles não reproduzem
+% integralmente as características de uma instalação
+% fotovoltaica real.
+
+% Entre os fatores ainda não representados adequadamente
+% estão:
+
+% \begin{itemize}
+%     \item Variações meteorológicas reais;
+%     \item Sombreamento parcial;
+%     \item Sujeira e degradação dos módulos;
+%     \item Indisponibilidade dos equipamentos;
+%     \item Limitações operacionais;
+%     \item Curtailment;
+%     \item Variações reais de eficiência;
+%     \item Erros de medição.
+% \end{itemize}
+
+% Além disso, o experimento de controle utilizou uma
+% única semente aleatória, sendo necessária a repetição
+% dos testes com diferentes inicializações e períodos
+% independentes.
+
+% A avaliação com dados reais do Operador Nacional do
+% Sistema Elétrico (ONS) e informações meteorológicas
+% correspondentes constitui uma etapa necessária para
+% verificar a capacidade de generalização dos modelos.
+
+% % ------------------------------------------------
+% % 5 CONSIDERAÇÕES FINAIS
+% % ------------------------------------------------
+
+% \section{Considerações Finais}
+
+% Este trabalho apresentou uma abordagem de previsão
+% de geração fotovoltaica baseada em aprendizado de
+% máquina, utilizando modelos Random Forest, RNN e LSTM.
+
+% A principal contribuição metodológica foi a investigação
+% de uma arquitetura híbrida baseada em aprendizagem
+% residual, combinando uma estimativa inicial associada
+% à irradiância solar com uma rede LSTM responsável
+% por aprender as correções.
+
+% Os experimentos preliminares indicaram que essa
+% estratégia apresentou desempenho superior aos demais
+% modelos no conjunto simulado, alcançando WAPE de 0,12\%.
+
+% Também foram investigadas técnicas de otimização
+% do treinamento, incluindo Huber Loss, Early Stopping
+% e redução adaptativa da taxa de aprendizagem.
+
+% A incorporação de restrições físicas relacionadas
+% à posição solar e à capacidade do inversor contribuiu
+% para tornar as previsões mais consistentes com o
+% funcionamento esperado dos sistemas fotovoltaicos.
+
+% Apesar dos resultados promissores, não é possível
+% afirmar superioridade em condições reais, uma vez
+% que os experimentos apresentados foram conduzidos
+% com dados simulados.
+
+% Como trabalhos futuros, pretende-se realizar a coleta
+% e integração de dados horários de geração fotovoltaica
+% e variáveis meteorológicas de Pernambuco, utilizando
+% informações do ONS e bases meteorológicas históricas
+% e de previsão.
+
+% Também será investigada a capacidade de generalização
+% dos modelos em diferentes localidades, especialmente
+% em Recife e Paulista, considerando diferentes condições
+% climáticas e configurações de sistemas fotovoltaicos.
+
+% Dessa forma, espera-se estabelecer uma solução
+% computacional de baixa complexidade, capaz de contribuir
+% para a previsão de geração fotovoltaica e o planejamento
+% de sistemas de energia solar.
+
+% % ------------------------------------------------
+% % REFERÊNCIAS
+% % ------------------------------------------------
+
+% \bibliographystyle{plain}
+% \bibliography{referencias}
+
+% \end{document}
+
+\documentclass[12pt]{article}
+
+\usepackage{sbc-template}
+
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{url}
+\usepackage{hyperref}
+
+\usepackage[brazil]{babel}   
+\usepackage[utf8]{inputenc}
+
+% \usepackage[a4paper,top=1.1cm,bottom=2.1cm,left=2.5cm,right=2.5cm]{geometry}
+
+\usepackage{lmodern,booktabs,tabularx,array,caption,hyperref,microtype,placeins,titling}
+
+\setlength{\droptitle}{-1.5cm}
+\hypersetup{hidelinks}
+\urlstyle{same}
+\setlength{\parindent}{1.25cm}
+\setlength{\parskip}{1pt}
+\setlength{\emergencystretch}{2em}
+\captionsetup{font=small,labelfont=bf}
+
+\graphicspath{{./images/}}
+
+\sloppy
+
+\input{sections/title.tex}
+
+\begin{document}
+\maketitle
+% \input{sections/abstract.tex}
+\input{sections/resumo.tex}
+\input{sections/01-introducao.tex}
+\input{sections/05-metodologia.tex}
+\input{sections/06-resultados.tex}
+\input{sections/07-conclusao.tex}
+
+\section{Limitações e trabalhos futuros}
+A principal limitação é o uso de dados sintéticos, construídos por um processo que compartilha relações com a referência física. A meteorologia simulada não representa fielmente os erros de uma previsão operacional. Além disso, o período de 120 dias não cobre todas as estações, e o modelo físico não representa em detalhe sombreamento, falhas, indisponibilidades ou curvas reais de eficiência dos inversores. Não houve experimento isolando o efeito de cada ajuste de treinamento.
+
+Para uma validação em Pernambuco, recomenda-se utilizar registros horários de geração AC de uma instalação real, características técnicas dos equipamentos e previsões meteorológicas emitidas antes da hora-alvo. O ONS \cite{ons} e o Open-Meteo \cite{meteo} são fontes candidatas, sujeitas à verificação de localização, unidade, granularidade e disponibilidade. O download das bases reais não foi concluído neste projeto. Também se recomenda utilizar um conjunto de teste independente, incluindo diferentes estações e condições adversas.
+
+% \section*{Reprodutibilidade}
+% O pacote V3 contém o código Python, a configuração dos equipamentos, os CSVs de entrada e de resultados, os gráficos e os pesos salvos do LSTM residual. Para reproduzir o experimento após instalar as dependências, executar:\par\noindent\texttt{python solar.py --demo --epocas 40 --seeds 42 123 2026}.
+
+\bibliographystyle{IEEEtran}
+\bibliography{referencias}
+
+\end{document}
